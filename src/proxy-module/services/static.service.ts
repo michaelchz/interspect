@@ -54,30 +54,40 @@ export class StaticService implements OnModuleDestroy {
       "proxyReq",
       (proxyReq: http.ClientRequest, req: IncomingMessage) => {
         // 收集请求体数据
-        let requestBody = "";
-        let isTextData = true;
+        const chunks: Buffer[] = [];
 
         // 监听请求数据
-        req.on("data", (chunk) => {
-          // 检查是否为文本数据
+        req.on("data", (chunk: string | Buffer) => {
+          // 收集所有数据，不判断是否为文本
           const buffer = Buffer.isBuffer(chunk) ? chunk : Buffer.from(chunk);
-          if (!buffer.toString("utf8").includes("�")) {
-            requestBody += buffer.toString("utf8");
-          } else {
-            isTextData = false;
-          }
+          chunks.push(buffer);
         });
 
         req.on("end", () => {
-          // 调用 inspect service 记录请求日志（包含 body）
-          this.inspectService.logRequest({
-            method: req.method,
-            url: req.url,
-            headers: req.headers,
-            body: isTextData ? requestBody : "[binary data]",
-            serviceName: StaticService.name,
-            timestamp: new Date().toISOString(),
-          });
+          // 传递原始数据给 InspectService 处理
+          if (chunks.length > 0) {
+            const data = Buffer.concat(chunks);
+
+            // 调用 inspect service 记录请求日志（包含 body）
+            this.inspectService.logRequest({
+              method: req.method,
+              url: req.url,
+              headers: req.headers,
+              body: data, // 直接传递 Buffer
+              serviceName: StaticService.name,
+              timestamp: new Date().toISOString(),
+            });
+          } else {
+            // 没有请求体
+            this.inspectService.logRequest({
+              method: req.method,
+              url: req.url,
+              headers: req.headers,
+              body: "",
+              serviceName: StaticService.name,
+              timestamp: new Date().toISOString(),
+            });
+          }
         });
       },
     );
@@ -106,30 +116,31 @@ export class StaticService implements OnModuleDestroy {
       this.metricsService.incrementStaticHttpCode(statusCode);
 
       // 收集响应内容
-      let responseBody = "";
-      let isResponseText = true;
+      const responseChunks: Buffer[] = [];
 
       // 监听响应数据
-      proxyRes.on("data", (chunk) => {
-        // 检查是否为文本数据
+      proxyRes.on("data", (chunk: string | Buffer) => {
         const buffer = Buffer.isBuffer(chunk) ? chunk : Buffer.from(chunk);
-        if (!buffer.toString("utf8").includes("�")) {
-          responseBody += buffer.toString("utf8");
-        } else {
-          isResponseText = false;
-        }
+        responseChunks.push(buffer);
       });
 
       req.on("close", () => proxyRes.destroy());
 
       proxyRes.on("end", () => {
+        // 传递原始数据给 InspectService 处理
+        let responseBody: string | Buffer = "";
+        if (responseChunks.length > 0) {
+          const data = Buffer.concat(responseChunks);
+          responseBody = data; // 直接传递 Buffer
+        }
+
         // 调用 inspect service 记录完整响应日志
         this.inspectService.logResponse({
           method: req.method,
           url: req.url,
           statusCode,
           headers: proxyRes.headers,
-          body: isResponseText ? responseBody : "[binary data]",
+          body: responseBody,
           serviceName: StaticService.name,
           timestamp: new Date().toISOString(),
         });
