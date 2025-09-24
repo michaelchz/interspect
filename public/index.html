@@ -1,0 +1,371 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>InterSpect</title>
+    <style>
+        :root {
+            --primary-color: #6a4eff;
+            --secondary-color: #f4f4f4;
+            --accent-color: #6a4eff;
+            --background-color: #000000;
+            --card-bg: #181818;
+            --text-color: #fff;
+            --border-color: #444;
+        }
+        
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+        }
+        
+        body {
+            background-color: var(--background-color);
+            color: var(--text-color);
+            padding: 20px;
+            min-height: 100vh;
+            display: flex;
+            flex-direction: column;
+        }
+        
+        .dashboard {
+            width: 95%;
+            max-width: none;
+            margin: 0 auto;
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+        }
+        
+        .header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 20px;
+            padding-bottom: 10px;
+            border-bottom: 1px solid var(--border-color);
+        }
+        
+        .header h1 {
+            color: var(--secondary-color);
+            font-weight: 500;
+        }
+        
+        .main-layout {
+            display: flex;
+            gap: 20px;
+            margin-bottom: 15px;
+            height: calc(100vh - 150px); /* 减去 header 和 footer 的高度 */
+        }
+
+        .left-column {
+            width: 350px;
+            display: flex;
+            flex-direction: column;
+            gap: 20px;
+            flex-shrink: 0;
+            overflow-y: auto;
+            padding-right: 10px;
+        }
+
+        .right-column {
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+            min-width: 0; /* 允许收缩 */
+        }
+
+        /* 自定义滚动条样式 */
+        .left-column::-webkit-scrollbar {
+            width: 8px;
+        }
+
+        .left-column::-webkit-scrollbar-track {
+            background: rgba(255, 255, 255, 0.1);
+            border-radius: 4px;
+        }
+
+        .left-column::-webkit-scrollbar-thumb {
+            background: rgba(255, 255, 255, 0.3);
+            border-radius: 4px;
+        }
+
+        .left-column::-webkit-scrollbar-thumb:hover {
+            background: rgba(255, 255, 255, 0.5);
+        }
+
+        @media (max-width: 1024px) {
+            .main-layout {
+                flex-direction: column;
+            }
+
+            .left-column {
+                width: 100%;
+                flex-direction: row;
+                overflow-x: auto;
+                overflow-y: hidden;
+                padding-right: 0;
+                padding-bottom: 10px;
+                flex-wrap: nowrap;
+            }
+
+            .left-column::-webkit-scrollbar {
+                height: 8px;
+                width: auto;
+            }
+
+            .left-column info-card {
+                min-width: 300px;
+                flex-shrink: 0;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="dashboard">
+        <div class="header">
+            <h1>系统概况</h1>
+            <div>上次更新: <span id="update-time"></span></div>
+        </div>
+        
+        <div class="main-layout">
+            <div class="left-column">
+                <info-card id="static-proxy-card" title="静态代理服务"></info-card>
+                <info-card id="websocket-card" title="WebSocket服务"></info-card>
+                <info-card id="env-config-card" title="环境变量"></info-card>
+            </div>
+            <div class="right-column">
+                <sse-client endpoint="/inspect/sse"></sse-client>
+            </div>
+        </div>
+    <footer>
+        <p>emby-fusion v<span id="app-version">__APP_VERSION__</span> up for <span id="app-uptime"></span></p>
+    </footer>
+    </div>
+
+    <script type="module" src="components/info-card.js"></script>
+    <script type="module" src="components/sse-client.js"></script>
+
+    <script>
+        let metricsIntervalId; // Global variable to store the interval ID
+
+        // 更新页面时间
+        function updateTime(message = null) {
+            const updateTimeSpan = document.getElementById('update-time');
+            if (message) {
+                updateTimeSpan.textContent = message;
+                updateTimeSpan.style.color = 'red'; // Highlight error
+            } else {
+                const now = new Date();
+                const options = { 
+                    year: 'numeric', 
+                    month: '2-digit', 
+                    day: '2-digit',
+                    hour: '2-digit', 
+                    minute: '2-digit', 
+                    second: '2-digit',
+                    hour12: false 
+                };
+                updateTimeSpan.textContent = now.toLocaleString('zh-CN', options);
+                updateTimeSpan.style.color = ''; // Reset color
+            }
+        }
+        
+        // 初始更新时间
+        updateTime();
+        
+        // 每分钟更新一次时间
+        setInterval(updateTime, 60000);
+
+        function getFusionToken() {
+            try {
+                const credentialsString = localStorage.getItem('servercredentials3');
+                if (!credentialsString) {
+                    console.warn('servercredentials3 not found in local storage.');
+                    return null;
+                }
+                const credentials = JSON.parse(credentialsString);
+                if (!credentials || !credentials.Servers || credentials.Servers.length === 0) {
+                    console.warn('Invalid servercredentials3 format.');
+                    return null;
+                }
+                const server = credentials.Servers[0];
+                const vUserId = server.UserId;
+                if (!vUserId || !server.Users || server.Users.length === 0) {
+                    console.warn('UserId or Users array not found in servercredentials3.');
+                    return null;
+                }
+                const user = server.Users.find(u => u.UserId === vUserId);
+                if (user && user.AccessToken) {
+                    return user.AccessToken;
+                }
+                console.warn('AccessToken not found for the current UserId.');
+                return null;
+            } catch (error) {
+                console.error('Error parsing servercredentials3 from local storage:', error);
+                return null;
+            }
+        }
+
+        function formatUptime(seconds) {
+            const days = Math.floor(seconds / (24 * 60 * 60));
+            seconds -= days * 24 * 60 * 60;
+            const hours = Math.floor(seconds / (60 * 60));
+            seconds -= hours * 60 * 60;
+            const minutes = Math.floor(seconds / 60);
+            seconds -= minutes * 60;
+            let result = "";
+            if (days > 0) {
+                result += `${days}d `;
+            }
+            if (hours > 0) {
+                result += `${hours}h `;
+            }
+            if (minutes > 0) {
+                result += `${minutes}m `;
+            }
+            result += `${seconds}s`;
+            return result.trim();
+        }
+
+        async function fetchDashboardMetrics() {
+            try {
+                const token = getFusionToken();
+                const headers = token ? { 'x-fusion-token': token } : {};
+                const response = await fetch('/fusion/metrics', { headers }); // Single endpoint
+                if (response.status === 401) {
+                    updateTime('授权失败，请重新登录。');
+                    clearInterval(metricsIntervalId); // Stop further updates
+                    return;
+                }
+                const data = await response.json();
+
+                
+                // Update Static Proxy Service Data Card
+                const staticHttpCounts = Object.entries(data.static.httpCounts).map(([code, count]) => ({
+                    label: `-- HTTP ${code}`,
+                    value: count.toLocaleString()
+                }));
+                document.querySelector('#static-proxy-card').setData([
+                    { label: '静态·连接池(活跃/空闲) HTTP', value: `${data.agentStatus.static.http.active}/${data.agentStatus.static.http.idle}` },
+                    { label: '静态·连接池(活跃/空闲) HTTPS', value: `${data.agentStatus.static.https.active}/${data.agentStatus.static.https.idle}` },
+                    { label: '请求总数量', value: data.static.requestCount.toLocaleString() },
+                    ...staticHttpCounts
+                ]);
+
+                
+                // Update WebSocket Service Data Card
+                const wsData = data.webSocket || {};
+                
+                // 确保 websocket-card 元素存在
+                const websocketCard = document.querySelector('#websocket-card');
+                if (!websocketCard) {
+                    console.error('找不到 #websocket-card 元素');
+                    return;
+                }
+                
+                const websocketCardData = [
+                    { label: '当前客户端连接', value: (wsData.connections?.current?.clients || 0).toLocaleString() },
+                    { label: '当前服务器连接', value: (wsData.connections?.current?.servers || 0).toLocaleString() },
+                    { label: '客户端消息(发送/接收)', value: `${(wsData.messages?.clients?.sent || 0).toLocaleString()}/${(wsData.messages?.clients?.received || 0).toLocaleString()}` },
+                    { label: '服务器消息(发送/接收)', value: `${(wsData.messages?.servers?.sent || 0).toLocaleString()}/${(wsData.messages?.servers?.received || 0).toLocaleString()}` },
+                    { label: '重连(成功/失败)', value: `${(wsData.reconnections?.successes || 0).toLocaleString()}/${(wsData.reconnections?.failures || 0).toLocaleString()}` },
+                    { label: '平均消息处理时间', value: `${(wsData.performance?.averageMessageProcessingTime || 0).toFixed(2)}ms` }
+                ];
+                
+                // Add error counts if they exist
+                if (wsData.errors) {
+                    websocketCardData.push(
+                        { label: '客户端连接错误', value: (wsData.errors.clientConnections || 0).toLocaleString() },
+                        { label: '消息处理错误', value: (wsData.errors.messages || 0).toLocaleString() },
+                        { label: '服务器连接错误', value: (wsData.errors.serverConnections || 0).toLocaleString() }
+                    );
+                }
+
+                try {
+                    websocketCard.setData(websocketCardData);
+                } catch (error) {
+                    console.error('设置数据时出错:', error);
+                }
+
+                // Update uptime
+                if (data.uptime) {
+                    document.getElementById('app-uptime').textContent = formatUptime(data.uptime);
+                }
+
+                // Update last updated time
+                updateTime();
+
+            } catch (error) {
+                console.error('获取仪表盘统计数据失败:', error);
+                updateTime('获取数据失败。');
+            }
+        }
+
+        async function fetchDashboardConfig() {
+            try {
+                const token = getFusionToken();
+                const headers = token ? { 'x-fusion-token': token } : {};
+                const response = await fetch('/fusion/config/dashboard', { headers });
+                if (response.status === 401) {
+                    updateTime('授权失败，请重新登录。');
+                    clearInterval(metricsIntervalId); // Stop further updates
+                    return;
+                }
+                const data = await response.json();
+
+                // Helper function to format seconds into HH:mm:ss
+                function formatSeconds(seconds) {
+                    const h = Math.floor(seconds / 3600);
+                    const m = Math.floor((seconds % 3600) / 60);
+                    const s = seconds % 60;
+                    return [h, m, s]
+                        .map(v => v < 10 ? "0" + v : v)
+                        .filter((v, i) => v !== "00" || i > 0) // Remove leading "00" for hours/minutes if they are zero
+                        .join(':');
+                }
+
+                // Update Environment Config Card
+                const envConfigData = [];
+
+                // Add Target server URL
+                if (data.environment.targetServerUrl) {
+                    envConfigData.push({ label: '目标服务器', value: data.environment.targetServerUrl });
+                } else {
+                    envConfigData.push({ label: '目标服务器', value: '未配置' });
+                }
+                
+                                
+                document.querySelector('#env-config-card').setData(envConfigData);
+
+            } catch (error) {
+                console.error('获取仪表盘配置数据失败:', error);
+                updateTime('获取配置失败。');
+                document.querySelector('#env-config-card').setData([
+                    { label: '目标服务器', value: '加载失败' }
+                ]);
+            }
+        }
+
+        // 初始获取数据 - 等待组件加载完成
+        function waitForComponents(callback) {
+            if (customElements.get('info-card')) {
+                callback();
+            } else {
+                setTimeout(() => waitForComponents(callback), 100);
+            }
+        }
+
+        waitForComponents(() => {
+            fetchDashboardMetrics();
+            fetchDashboardConfig();
+        });
+
+        // Update metrics every 5 seconds
+        metricsIntervalId = setInterval(fetchDashboardMetrics, 5000);
+    </script>
+</body>
+</html>
