@@ -148,72 +148,6 @@ class SSEClient extends HTMLElement {
                     max-height: 100%;
                 }
 
-                .message {
-                    margin-bottom: 10px;
-                    padding: 8px;
-                    background-color: rgba(255, 255, 255, 0.05);
-                    border-radius: 4px;
-                    font-family: monospace;
-                    font-size: 13px;
-                }
-
-                .message:last-child {
-                    margin-bottom: 0;
-                }
-
-                .message-time {
-                    color: #888;
-                    font-size: 11px;
-                }
-
-                .message-content {
-                    margin-top: 4px;
-                    color: #fff;
-                }
-
-                .message-content pre {
-                    margin: 0;
-                    white-space: pre-wrap;
-                    word-wrap: break-word;
-                    font-family: monospace;
-                    font-size: 13px;
-                    line-height: 1.4;
-                }
-
-                .message-header {
-                    display: flex;
-                    align-items: center;
-                    gap: 8px;
-                    margin-bottom: 8px;
-                }
-
-                .message-icon {
-                    font-size: 16px;
-                }
-
-                .message-text {
-                    font-weight: 500;
-                }
-
-                .message-data {
-                    background-color: rgba(0, 0, 0, 0.3);
-                    padding: 8px;
-                    border-radius: 4px;
-                    margin-top: 4px;
-                    font-size: 12px;
-                }
-
-                .message-request .message-icon {
-                    color: #2196F3;
-                }
-
-                .message-response .message-icon {
-                    color: #4CAF50;
-                }
-
-                .message-error .message-icon {
-                    color: #F44336;
-                }
             </style>
             <div class="sse-container">
                 <div class="sse-header">
@@ -315,58 +249,28 @@ class SSEClient extends HTMLElement {
 
     addMessage(type, content) {
         const container = this.shadowRoot.querySelector('#messages-container');
-        const message = document.createElement('div');
-        message.className = 'message';
 
-        const time = new Date().toLocaleTimeString();
-        let contentHtml = '';
-        let messageClass = '';
-
-        if (typeof content === 'object') {
-            // 为不同类型的消息添加样式
-            if (content.icon) {
-                messageClass = ` message-${content.type}`;
-                contentHtml = `
-                    <div class="message-header">
-                        <span class="message-icon">${content.icon}</span>
-                        <span class="message-text">${this.escapeHtml(content.message)}</span>
-                    </div>
-                    ${content.data ? `<pre class="message-data">${JSON.stringify(content.data, null, 2)}</pre>` : ''}
-                `;
-            } else {
-                contentHtml = `<pre>${JSON.stringify(content, null, 2)}</pre>`;
-            }
-        } else {
-            contentHtml = this.escapeHtml(content);
+        // 清除占位消息
+        const placeholder = container.querySelector('.message .message-time');
+        if (placeholder && (placeholder.textContent.includes('等待连接') || placeholder.textContent.includes('消息已清空'))) {
+            container.innerHTML = '';
         }
 
-        message.className = `message${messageClass}`;
-        message.innerHTML = `
-            <div class="message-time">[${time}] ${type}:</div>
-            <div class="message-content">${contentHtml}</div>
-        `;
+        // 创建新的消息元素
+        const messageEl = document.createElement('sse-message');
+        messageEl.setMessage(type, content);
 
         // 限制消息数量
-        const messages = container.querySelectorAll('.message');
+        const messages = container.querySelectorAll('sse-message');
         if (messages.length >= 50) {
             messages[0].remove();
         }
 
-        container.appendChild(message);
+        container.appendChild(messageEl);
         container.scrollTop = container.scrollHeight;
     }
 
-    escapeHtml(text) {
-        const map = {
-            '&': '&amp;',
-            '<': '&lt;',
-            '>': '&gt;',
-            '"': '&quot;',
-            "'": '&#039;'
-        };
-        return text.replace(/[&<>"']/g, m => map[m]);
-    }
-
+  
     updateStatus(status, text) {
         const statusEl = this.shadowRoot.querySelector('#connection-status');
         const indicator = this.shadowRoot.querySelector('#heartbeat-indicator');

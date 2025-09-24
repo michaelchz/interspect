@@ -41,14 +41,14 @@ export class StaticService implements OnModuleDestroy {
       timeout: 60000,
     });
 
-    this.setupProxyListeners(this.proxy, 0);
+    this.setupProxyListeners(this.proxy);
 
     this.logger.log(
       `${StaticService.name} initialized with target server: ${this.targetServerUrl}`,
     );
   }
 
-  private setupProxyListeners(proxy: ProxyServer, serverIndex: number): void {
+  private setupProxyListeners(proxy: ProxyServer): void {
     // 监听代理请求事件
     proxy.on(
       "proxyReq",
@@ -75,7 +75,6 @@ export class StaticService implements OnModuleDestroy {
             url: req.url,
             headers: req.headers,
             body: isTextData ? requestBody : "[binary data]",
-            serverIndex,
             serviceName: StaticService.name,
             timestamp: new Date().toISOString(),
           });
@@ -88,7 +87,6 @@ export class StaticService implements OnModuleDestroy {
       this.inspectService.logError({
         error: err.message,
         stack: err.stack,
-        serverIndex,
         serviceName: StaticService.name,
         timestamp: new Date().toISOString(),
       });
@@ -97,7 +95,7 @@ export class StaticService implements OnModuleDestroy {
         res.writeHead(500, { "Content-Type": "application/json" });
         res.end(
           JSON.stringify({
-            message: `Internal ${StaticService.name} error (server ${serverIndex})`,
+            message: `Internal ${StaticService.name} error`,
           }),
         );
       }
@@ -132,7 +130,6 @@ export class StaticService implements OnModuleDestroy {
           statusCode,
           headers: proxyRes.headers,
           body: isResponseText ? responseBody : "[binary data]",
-          serverIndex,
           serviceName: StaticService.name,
           timestamp: new Date().toISOString(),
         });

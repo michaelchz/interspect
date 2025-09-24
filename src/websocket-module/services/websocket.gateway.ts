@@ -75,7 +75,6 @@ export class WebSocketGateway implements OnModuleDestroy {
             direction: "client-to-server",
             data: messageData,
             isBinary,
-            serverIndex: 0, // WebSocket 目前只连接第一个服务器
             serviceName: "WebSocketGateway",
             timestamp: new Date().toISOString(),
           });
@@ -109,7 +108,6 @@ export class WebSocketGateway implements OnModuleDestroy {
             direction: "server-to-client",
             data: messageData,
             isBinary,
-            serverIndex: 0, // WebSocket 目前只连接第一个服务器
             serviceName: "WebSocketGateway",
             timestamp: new Date().toISOString(),
           });
