@@ -9,7 +9,6 @@ class TextAnalyzer extends HTMLElement {
         this.textHistory = null;  // 文本历史存储实例
         this.lastSelectionPosition = null;  // 记录最后一次选择的位置
         this.autoSelectEnabled = true;  // 是否启用自动选择功能
-        this.lastExpandedRange = null;  // 记录最后一次扩展的选择范围
 
         const template = document.createElement('template');
         template.innerHTML = `
@@ -127,41 +126,48 @@ class TextAnalyzer extends HTMLElement {
      * 初始化智能选择功能
      */
     initSmartSelection() {
-        // 监听选择变化事件
-        document.addEventListener('selectionchange', (e) => {
+        let lastSignature = null;
+
+        const contentContainer = this.shadowRoot.querySelector('#contentContainer');
+        
+        contentContainer.addEventListener('mouseup', () => {
+          // 用 rAF 等待浏览器更新 selection
+          requestAnimationFrame(() => {
             const selection = this.shadowRoot.getSelection();
-
-            // 检查是否是我们自己触发的扩展
-            if (selection && selection.rangeCount > 0 && this.lastExpandedRange) {
-                const range = selection.getRangeAt(0);
-                if (range.startContainer === this.lastExpandedRange.startContainer &&
-                    range.startOffset === this.lastExpandedRange.startOffset &&
-                    range.endContainer === this.lastExpandedRange.endContainer &&
-                    range.endOffset === this.lastExpandedRange.endOffset) {
-                    // 这是我们自己触发的扩展，忽略
-                    this.lastExpandedRange = null;
-                    return;
-                }
-            }
-
-            // 清除扩展记录
-            this.lastExpandedRange = null;
-
-            if (selection && selection.rangeCount > 0 && selection.toString().trim()) {
-                // 有有效选择
-                const position = this.expandSelectionToString(selection);
-
-                // 保存选择位置
-                if (position) {
-                    this.lastSelectionPosition = position;
-                }
-
-                // 触发自定义事件通知选择变化
-                this.notifySelectionChange(position);
-            } else if (this.lastSelectionPosition) {
-                // 选择被清空或内容为空
+        
+            if (!selection || selection.rangeCount === 0 || !selection.toString().trim()) {
+              // 没有有效选择
+              if (this.lastSelectionPosition) {
                 this.lastSelectionPosition = null;
                 this.notifySelectionChange(null);
+              }
+              lastSignature = null;
+              return;
+            }
+        
+            // 生成选区签名，避免重复触发
+            const range = selection.getRangeAt(0);
+            const signature = `${range.startContainer}:${range.startOffset}-${range.endContainer}:${range.endOffset}`;
+        
+            if (signature !== lastSignature) {
+              const position = this.expandSelectionToString(selection);
+              if (position) {
+                this.lastSelectionPosition = position;
+                this.notifySelectionChange(position);
+              }
+              lastSignature = signature;
+            }
+          });
+        });
+
+        // 监听全局选择变化，处理外部清除选择的情况
+        document.addEventListener('selectionchange', () => {
+            const selection = this.shadowRoot.getSelection();
+            if (!selection || selection.rangeCount === 0 || !selection.toString().trim()) {
+                if (this.lastSelectionPosition) {
+                    this.lastSelectionPosition = null;
+                    this.notifySelectionChange(null);
+                }
             }
         });
     }
