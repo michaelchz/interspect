@@ -80,7 +80,7 @@ class TextAnalyzer extends HTMLElement {
 
             // 记录全部文本的选择位置（作为初始状态）
             const originalText = this.textHistory.originalText;
-            this.textHistory.recordSelection(0, originalText.length);
+            this.textHistory.recordSelection(0, originalText.length, 'MSG');
 
             // 检查是否包含 body 字段并自动选择
             this.checkAndSelectBody();
@@ -353,7 +353,7 @@ class TextAnalyzer extends HTMLElement {
                 const bodyIndex = currentText.indexOf(bodyStr);
                 if (bodyIndex !== -1) {
                     // 记录 body 内容的选择位置
-                    this.textHistory.recordSelection(bodyIndex, bodyIndex + bodyStr.length);
+                    this.textHistory.recordSelection(bodyIndex, bodyIndex + bodyStr.length, 'BODY');
 
                     // 更新最后选择位置
                     this.lastSelectionPosition = {

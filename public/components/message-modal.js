@@ -74,6 +74,38 @@ class MessageModal extends HTMLElement {
                     font-size: 16px;
                     font-weight: 600;
                     color: var(--secondary-color);
+                    display: flex;
+                    align-items: center;
+                    gap: 8px;
+                }
+
+                .history-path {
+                    display: flex;
+                    align-items: center;
+                    gap: 4px;
+                    font-size: 14px;
+                    color: #888;
+                }
+
+                .history-path-item {
+                    cursor: pointer;
+                    padding: 2px 6px;
+                    border-radius: 3px;
+                    transition: background-color 0.2s;
+                }
+
+                .history-path-item:hover {
+                    background-color: rgba(255, 255, 255, 0.1);
+                    color: #fff;
+                }
+
+                .history-path-item.active {
+                    color: var(--secondary-color);
+                }
+
+                .history-path-separator {
+                    color: #666;
+                    margin: 0 2px;
                 }
 
                 .modal-close {
@@ -219,7 +251,10 @@ class MessageModal extends HTMLElement {
             <div class="modal-overlay" id="overlay"></div>
             <div class="modal-container" id="modalContainer">
                 <div class="modal-header">
-                    <div class="modal-title">消息详情</div>
+                    <div class="modal-title">
+                        <span>消息详情</span>
+                        <div class="history-path" id="historyPath"></div>
+                    </div>
                     <div class="modal-controls">
                         <button class="copy-selection-btn" id="copySelectionBtn" title="使用选中内容">
                             <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
@@ -345,6 +380,82 @@ class MessageModal extends HTMLElement {
             };
         }
         textAnalyzer.setData(displayData);
+
+  
+        // 延迟更新历史路径，等待文本分析器初始化完成
+        setTimeout(() => {
+            this.updateHistoryPath();
+        }, 100);
+    }
+
+    /**
+     * 更新历史路径显示
+     */
+    updateHistoryPath() {
+        const textAnalyzer = this.shadowRoot.querySelector('#textAnalyzer');
+        const historyPath = this.shadowRoot.querySelector('#historyPath');
+
+        if (!textAnalyzer || !textAnalyzer.textHistory) {
+            historyPath.innerHTML = '';
+            return;
+        }
+
+        const historyInfo = textAnalyzer.textHistory.getHistoryInfo();
+        const currentIndex = textAnalyzer.textHistory.currentIndex;
+
+        // 构建路径HTML
+        let pathHtml = '';
+
+        historyInfo.forEach((item, index) => {
+            if (index > 0) {
+                pathHtml += '<span class="history-path-separator">›</span>';
+            }
+
+            const isActive = index === currentIndex;
+            const itemClass = isActive ? 'history-path-item active' : 'history-path-item';
+
+            let label = this.escapeHtml(item.label);
+            if (item.position) {
+                // 如果是选择项，添加位置信息
+                const length = item.position.length || 0;
+                label += ` (${length})`;
+            }
+
+            pathHtml += `<span class="${itemClass}" data-index="${index}" title="${this.escapeHtml(item.preview)}">${label}</span>`;
+        });
+
+        historyPath.innerHTML = pathHtml;
+
+        // 绑定点击事件
+        const pathItems = historyPath.querySelectorAll('.history-path-item');
+        pathItems.forEach(item => {
+            item.addEventListener('click', (e) => {
+                const index = parseInt(e.target.dataset.index);
+                this.goToHistory(index);
+            });
+        });
+    }
+
+    /**
+     * 跳转到指定历史记录
+     * @param {number} index - 历史索引
+     */
+    goToHistory(index) {
+        const textAnalyzer = this.shadowRoot.querySelector('#textAnalyzer');
+        if (!textAnalyzer || !textAnalyzer.textHistory) return;
+
+        // 跳转到指定历史
+        const text = textAnalyzer.textHistory.goTo(index);
+
+    
+        // 强制更新文本分析器的显示
+        const contentContainer = textAnalyzer.shadowRoot.querySelector('#contentContainer');
+        if (contentContainer) {
+            contentContainer.innerHTML = `<pre>${textAnalyzer.escapeHtml(text)}</pre>`;
+        }
+
+        // 更新历史路径显示
+        this.updateHistoryPath();
     }
 
     /**
@@ -491,6 +602,19 @@ class MessageModal extends HTMLElement {
             if (copyBtn) {
                 copyBtn.disabled = false;
             }
+
+            // 更新历史路径显示
+            setTimeout(() => {
+                this.updateHistoryPath();
+            }, 50);
+        });
+
+        // 监听内容替换事件
+        textAnalyzer.addEventListener('content-replaced', (e) => {
+            // 更新历史路径显示
+            setTimeout(() => {
+                this.updateHistoryPath();
+            }, 50);
         });
     }
 

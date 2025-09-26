@@ -45,8 +45,9 @@ class TextHistoryStorage {
      * 记录选择位置
      * @param {number} start - 起始位置
      * @param {number} end - 结束位置
+     * @param {string} [label] - 可选的选择标签
      */
-    recordSelection(start, end) {
+    recordSelection(start, end, label) {
         // 移除当前位置之后的历史记录（如果有的话）
         if (this.currentIndex < this.positions.length - 1) {
             this.positions = this.positions.slice(0, this.currentIndex + 1);
@@ -62,6 +63,11 @@ class TextHistoryStorage {
         try {
             // 去除首尾空白字符
             const trimmed = this.parseQuotedString(content).trim();
+
+            if (!label) {
+                // 截取前 15 个字符作为标签
+                label = trimmed.length > 15 ? trimmed.substring(0, 7) + '..' : trimmed;
+            }
 
             // 检查是否是 JSON 格式
             if ((trimmed.startsWith('{') && trimmed.endsWith('}')) ||
@@ -79,7 +85,8 @@ class TextHistoryStorage {
         this.positions.push({
             start,
             end,
-            useStringify
+            useStringify,
+            label
         });
 
         // 更新当前索引
@@ -171,11 +178,35 @@ class TextHistoryStorage {
      * @returns {string} 目标版本的文本
      */
     goTo(index) {
-        if (index >= -1 && index < this.positions.length) {
-            this.currentIndex = index;
+        if (index < -1 || index >= this.positions.length) {
             return this.getCurrentText();
         }
-        return this.getCurrentText();
+
+        // 如果跳转到原始文本
+        if (index === -1) {
+            this.currentIndex = -1;
+            this.lastText = this.originalText;
+            return this.originalText;
+        }
+
+        // 重置到原始文本状态
+        this.currentIndex = -1;
+        this.lastText = this.originalText;
+
+        // 从索引 0 开始，逐个处理到目标索引（不包括最后一个）
+        for (let i = 0; i < index; i++) {
+            // 设置当前索引
+            this.currentIndex = i;
+            // 获取当前索引的文本并设置为 lastText
+            this.lastText = this.getCurrentText();
+        }
+
+        // 设置最终索引
+        this.currentIndex = index;
+        // 获取最终文本（不要更新 lastText）
+        const finalText = this.getCurrentText();
+
+        return finalText;
     }
 
     /**
@@ -228,24 +259,17 @@ class TextHistoryStorage {
     getHistoryInfo() {
         const info = [];
 
-        // 添加原始文本信息
-        info.push({
-            index: -1,
-            label: '原始文本',
-            isOriginal: true,
-            preview: this.originalText.substring(0, 50) + (this.originalText.length > 50 ? '...' : '')
-        });
-
         // 添加每个选择记录的信息
         this.positions.forEach((pos, index) => {
             const selectedText = this.originalText.slice(pos.start, pos.end);
             info.push({
                 index: index,
-                label: `选择 ${index + 1}`,
+                label: pos.label || `选择 ${index + 1}`,
                 isOriginal: false,
                 position: {
                     start: pos.start,
-                    end: pos.end
+                    end: pos.end,
+                    length: pos.end - pos.start
                 },
                 useStringify: pos.useStringify,
                 preview: selectedText.substring(0, 50) + (selectedText.length > 50 ? '...' : '')
