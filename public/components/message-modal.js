@@ -52,8 +52,8 @@ class MessageModal extends HTMLElement {
                     border-radius: 8px;
                     box-shadow: 0 8px 32px rgba(0, 0, 0, 0.3);
                     border: 1px solid rgba(255, 255, 255, 0.1);
-                    width: 600px;
-                    height: 400px;
+                    width: 80vw;
+                    height: 80vh;
                     min-width: 300px;
                     min-height: 200px;
                     max-width: 90%;
@@ -95,6 +95,30 @@ class MessageModal extends HTMLElement {
                 .modal-close:hover {
                     background-color: rgba(255, 255, 255, 0.1);
                     color: #fff;
+                }
+
+                .copy-selection-btn {
+                    background: none;
+                    border: none;
+                    color: #888;
+                    font-size: 16px;
+                    cursor: pointer;
+                    padding: 6px 8px;
+                    border-radius: 4px;
+                    transition: all 0.2s;
+                    display: flex;
+                    align-items: center;
+                    justify-content: center;
+                }
+
+                .copy-selection-btn:hover {
+                    background-color: rgba(255, 255, 255, 0.1);
+                    color: var(--primary-color);
+                }
+
+                .copy-selection-btn:disabled {
+                    opacity: 0.5;
+                    cursor: not-allowed;
                 }
 
                 .modal-controls {
@@ -191,59 +215,17 @@ class MessageModal extends HTMLElement {
                     margin-bottom: 10px;
                 }
 
-                .message-content {
-                    color: #fff;
-                }
-
-                .message-content pre {
-                    margin: 0;
-                    white-space: pre-wrap;
-                    word-wrap: break-word;
-                    font-family: monospace;
-                    font-size: 14px;
-                    line-height: 1.5;
-                }
-
-                .message-header {
-                    display: flex;
-                    align-items: center;
-                    gap: 8px;
-                    margin-bottom: 10px;
-                }
-
-                .message-icon {
-                    font-size: 18px;
-                }
-
-                .message-text {
-                    font-weight: 500;
-                }
-
-                .message-data {
-                    margin-top: 8px;
-                    font-size: 13px;
-                    white-space: pre-wrap;
-                    word-wrap: break-word;
-                    font-family: monospace;
-                }
-
-                .message-request .message-icon {
-                    color: #2196F3;
-                }
-
-                .message-response .message-icon {
-                    color: #4CAF50;
-                }
-
-                .message-error .message-icon {
-                    color: #F44336;
-                }
-            </style>
+                </style>
             <div class="modal-overlay" id="overlay"></div>
             <div class="modal-container" id="modalContainer">
                 <div class="modal-header">
                     <div class="modal-title">消息详情</div>
                     <div class="modal-controls">
+                        <button class="copy-selection-btn" id="copySelectionBtn" title="使用选中内容">
+                            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                <path d="M8 5H6a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2v-1M8 5a2 2 0 002 2h2a2 2 0 002-2M8 5a2 2 0 012-2h2a2 2 0 012 2m0 0h2a2 2 0 012 2v3m2 4H10m0 0l3-3m-3 3l3 3"/>
+                            </svg>
+                        </button>
                         <div class="view-toggle">
                             <button class="toggle-btn active" data-view="raw">RAW</button>
                             <button class="toggle-btn" data-view="body">BODY</button>
@@ -254,7 +236,7 @@ class MessageModal extends HTMLElement {
                 <div class="modal-body">
                     <div class="message">
                         <div class="message-time" id="modalTime"></div>
-                        <div class="message-content" id="modalContent"></div>
+                        <text-analyzer id="textAnalyzer"></text-analyzer>
                     </div>
                 </div>
                 <div class="resize-handle resize-handle-e" data-direction="e"></div>
@@ -268,6 +250,12 @@ class MessageModal extends HTMLElement {
         // 绑定事件
         this.shadowRoot.querySelector('#overlay').addEventListener('click', () => this.hide());
         this.shadowRoot.querySelector('#closeBtn').addEventListener('click', () => this.hide());
+        this.shadowRoot.querySelector('#copySelectionBtn').addEventListener('click', () => {
+            const textAnalyzer = this.shadowRoot.querySelector('#textAnalyzer');
+            if (textAnalyzer && typeof textAnalyzer.useSelectedText === 'function') {
+                textAnalyzer.useSelectedText();
+            }
+        });
 
         // 防止点击内容区域时关闭弹窗
         this.shadowRoot.querySelector('.modal-container').addEventListener('click', (e) => {
@@ -279,6 +267,9 @@ class MessageModal extends HTMLElement {
 
         // 初始化视图切换功能
         this.initViewToggle();
+
+        // 初始化选择监听
+        this.initSelectionListener();
     }
 
     /**
@@ -321,46 +312,39 @@ class MessageModal extends HTMLElement {
     updateContent() {
         if (!this.messageData) return;
 
-        const contentEl = this.shadowRoot.querySelector('#modalContent');
-        let contentHtml = '';
+        const textAnalyzer = this.shadowRoot.querySelector('#textAnalyzer');
 
-        if (this.currentView === 'raw') {
-            // 显示完整消息
-            if (typeof this.messageData.content === 'object' && this.messageData.content.icon) {
-                contentHtml = `
-                    <div class="message-header">
-                        <span class="message-icon">${this.messageData.content.icon}</span>
-                        <span class="message-text">${this.escapeHtml(this.messageData.content.message)}</span>
-                    </div>
-                    ${this.messageData.content.data ? `<pre>${JSON.stringify(this.messageData.content.data, null, 2)}</pre>` : ''}
-                `;
-            } else if (typeof this.messageData.content === 'object') {
-                // 其他对象类型，直接 JSON 化
-                contentHtml = `<pre>${JSON.stringify(this.messageData.content, null, 2)}</pre>`;
+        // 根据当前视图创建不同的显示数据
+        let displayData;
+
+        if (this.currentView === 'body' && typeof this.messageData.content === 'object' && this.messageData.content.data) {
+            // BODY 视图：只显示 body 数据
+            if (this.messageData.content.data.body) {
+                // HTTP 请求/响应
+                displayData = {
+                    type: 'string',
+                    content: this.messageData.content.data.body
+                };
+            } else if (this.messageData.content.data.data) {
+                // WebSocket 消息
+                displayData = {
+                    type: 'string',
+                    content: this.messageData.content.data.data
+                };
             } else {
-                // 字符串类型，直接显示
-                contentHtml = this.escapeHtml(this.messageData.content);
+                displayData = {
+                    type: 'string',
+                    content: '无 Body 数据'
+                };
             }
         } else {
-            // 只显示 BODY 数据
-            if (typeof this.messageData.content === 'object' && this.messageData.content.data) {
-                // 检查是否是 WebSocket 消息（有 direction 属性）
-                if (this.messageData.content.data.direction) {
-                    // WebSocket 消息
-                    contentHtml = `<pre>${this.escapeHtml(this.messageData.content.data.data)}</pre>`;
-                } else if (this.messageData.content.data.body) {
-                    // 请求/响应消息
-                    contentHtml = `<pre>${this.escapeHtml(this.messageData.content.data.body)}</pre>`;
-                } else {
-                    contentHtml = '';
-                }
-            } else {
-                // 其他情况不显示内容
-                contentHtml = '';
-            }
+            // RAW 视图：显示完整数据
+            displayData = {
+                type: this.messageData.type,
+                content: this.messageData.content.data
+            };
         }
-
-        contentEl.innerHTML = contentHtml;
+        textAnalyzer.setData(displayData);
     }
 
     /**
@@ -476,6 +460,12 @@ class MessageModal extends HTMLElement {
         // 更新内容
         this.updateContent();
 
+        // 初始化复制选择按钮为禁用状态
+        const copyBtn = this.shadowRoot.querySelector('#copySelectionBtn');
+        if (copyBtn) {
+            copyBtn.disabled = true;
+        }
+
         this.setAttribute('visible', '');
         document.body.style.overflow = 'hidden';
     }
@@ -486,6 +476,22 @@ class MessageModal extends HTMLElement {
     hide() {
         this.removeAttribute('visible');
         document.body.style.overflow = '';
+    }
+
+    /**
+     * 初始化选择监听
+     */
+    initSelectionListener() {
+        const textAnalyzer = this.shadowRoot.querySelector('#textAnalyzer');
+
+        // 监听文本分析器的选择变化事件
+        textAnalyzer.addEventListener('selection-changed', (e) => {
+            // 启用复制选择按钮
+            const copyBtn = this.shadowRoot.querySelector('#copySelectionBtn');
+            if (copyBtn) {
+                copyBtn.disabled = false;
+            }
+        });
     }
 
     /**
