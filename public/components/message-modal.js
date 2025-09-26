@@ -8,8 +8,8 @@ class MessageModal extends HTMLElement {
         this.startHeight = 0;
         this.startX = 0;
         this.startY = 0;
-        this.currentView = 'raw';
         this.messageData = null;
+        this.autoSelectEnabled = true;
 
         const template = document.createElement('template');
         template.innerHTML = `
@@ -159,34 +159,47 @@ class MessageModal extends HTMLElement {
                     align-items: center;
                 }
 
-                .view-toggle {
+                .auto-select-control {
                     display: flex;
-                    background-color: rgba(255, 255, 255, 0.1);
-                    border-radius: 4px;
-                    padding: 2px;
+                    align-items: center;
+                    gap: 6px;
+                    margin-right: 10px;
                 }
 
-                .toggle-btn {
-                    background: none;
-                    border: none;
-                    color: #888;
+                .auto-select-label {
                     font-size: 12px;
-                    font-weight: 500;
+                    color: #888;
                     cursor: pointer;
-                    padding: 6px 12px;
-                    border-radius: 3px;
-                    transition: all 0.2s;
-                    text-transform: uppercase;
+                    user-select: none;
                 }
 
-                .toggle-btn.active {
-                    background-color: var(--primary-color);
-                    color: white;
-                }
-
-                .toggle-btn:hover:not(.active) {
+                .switch {
+                    position: relative;
+                    width: 36px;
+                    height: 18px;
                     background-color: rgba(255, 255, 255, 0.1);
-                    color: #fff;
+                    border-radius: 9px;
+                    cursor: pointer;
+                    transition: background-color 0.3s;
+                }
+
+                .switch.active {
+                    background-color: var(--primary-color);
+                }
+
+                .switch-slider {
+                    position: absolute;
+                    top: 2px;
+                    left: 2px;
+                    width: 14px;
+                    height: 14px;
+                    background-color: white;
+                    border-radius: 50%;
+                    transition: transform 0.3s;
+                }
+
+                .switch.active .switch-slider {
+                    transform: translateX(18px);
                 }
 
                 .resize-handle {
@@ -256,15 +269,17 @@ class MessageModal extends HTMLElement {
                         <div class="history-path" id="historyPath"></div>
                     </div>
                     <div class="modal-controls">
+                        <div class="auto-select-control">
+                            <label class="auto-select-label" for="autoSelectSwitch">自动选择</label>
+                            <div class="switch active" id="autoSelectSwitch">
+                                <div class="switch-slider"></div>
+                            </div>
+                        </div>
                         <button class="copy-selection-btn" id="copySelectionBtn" title="使用选中内容">
                             <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
                                 <path d="M8 5H6a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2v-1M8 5a2 2 0 002 2h2a2 2 0 002-2M8 5a2 2 0 012-2h2a2 2 0 012 2m0 0h2a2 2 0 012 2v3m2 4H10m0 0l3-3m-3 3l3 3"/>
                             </svg>
                         </button>
-                        <div class="view-toggle">
-                            <button class="toggle-btn active" data-view="raw">RAW</button>
-                            <button class="toggle-btn" data-view="body">BODY</button>
-                        </div>
                         <button class="modal-close" id="closeBtn">&times;</button>
                     </div>
                 </div>
@@ -292,6 +307,11 @@ class MessageModal extends HTMLElement {
             }
         });
 
+        // 绑定自动选择开关事件
+        this.shadowRoot.querySelector('#autoSelectSwitch').addEventListener('click', () => {
+            this.toggleAutoSelect();
+        });
+
         // 防止点击内容区域时关闭弹窗
         this.shadowRoot.querySelector('.modal-container').addEventListener('click', (e) => {
             e.stopPropagation();
@@ -300,92 +320,34 @@ class MessageModal extends HTMLElement {
         // 初始化调整大小功能
         this.initResize();
 
-        // 初始化视图切换功能
-        this.initViewToggle();
-
         // 初始化选择监听
         this.initSelectionListener();
     }
 
-    /**
-     * 初始化视图切换功能
-     */
-    initViewToggle() {
-        const buttons = this.shadowRoot.querySelectorAll('.toggle-btn');
-
-        buttons.forEach(btn => {
-            btn.addEventListener('click', () => {
-                const view = btn.dataset.view;
-                this.switchView(view);
-            });
-        });
-    }
 
     /**
-     * 切换视图
+     * 切换自动选择功能
      */
-    switchView(view) {
-        this.currentView = view;
+    toggleAutoSelect() {
+        this.autoSelectEnabled = !this.autoSelectEnabled;
 
-        // 更新按钮状态
-        const buttons = this.shadowRoot.querySelectorAll('.toggle-btn');
-        buttons.forEach(btn => {
-            if (btn.dataset.view === view) {
-                btn.classList.add('active');
+        // 更新开关UI
+        const switchEl = this.shadowRoot.querySelector('#autoSelectSwitch');
+        if (switchEl) {
+            if (this.autoSelectEnabled) {
+                switchEl.classList.add('active');
             } else {
-                btn.classList.remove('active');
+                switchEl.classList.remove('active');
             }
-        });
-
-        // 更新显示内容
-        this.updateContent();
-    }
-
-    /**
-     * 更新显示内容
-     */
-    updateContent() {
-        if (!this.messageData) return;
-
-        const textAnalyzer = this.shadowRoot.querySelector('#textAnalyzer');
-
-        // 根据当前视图创建不同的显示数据
-        let displayData;
-
-        if (this.currentView === 'body' && typeof this.messageData.content === 'object' && this.messageData.content.data) {
-            // BODY 视图：只显示 body 数据
-            if (this.messageData.content.data.body) {
-                // HTTP 请求/响应
-                displayData = {
-                    type: 'string',
-                    content: this.messageData.content.data.body
-                };
-            } else if (this.messageData.content.data.data) {
-                // WebSocket 消息
-                displayData = {
-                    type: 'string',
-                    content: this.messageData.content.data.data
-                };
-            } else {
-                displayData = {
-                    type: 'string',
-                    content: '无 Body 数据'
-                };
-            }
-        } else {
-            // RAW 视图：显示完整数据
-            displayData = {
-                type: this.messageData.type,
-                content: this.messageData.content.data
-            };
         }
-        textAnalyzer.setData(displayData);
 
-  
-        // 延迟更新历史路径，等待文本分析器初始化完成
-        setTimeout(() => {
-            this.updateHistoryPath();
-        }, 100);
+        // 控制文本分析器的自动选择功能
+        const textAnalyzer = this.shadowRoot.querySelector('#textAnalyzer');
+        if (textAnalyzer) {
+            if (textAnalyzer.setAutoSelectEnabled && typeof textAnalyzer.setAutoSelectEnabled === 'function') {
+                textAnalyzer.setAutoSelectEnabled(this.autoSelectEnabled);
+            }
+        }
     }
 
     /**
@@ -557,24 +519,31 @@ class MessageModal extends HTMLElement {
             messageEl.className = 'message';
         }
 
-        // 重置视图为 RAW
-        this.currentView = 'raw';
-        const buttons = this.shadowRoot.querySelectorAll('.toggle-btn');
-        buttons.forEach(btn => {
-            if (btn.dataset.view === 'raw') {
-                btn.classList.add('active');
-            } else {
-                btn.classList.remove('active');
-            }
-        });
-
         // 更新内容
-        this.updateContent();
+        const textAnalyzer = this.shadowRoot.querySelector('#textAnalyzer');
+        if (textAnalyzer) {
+            textAnalyzer.setData({
+                type: this.messageData.type,
+                content: this.messageData.content.data
+            });
+
+            // 延迟更新历史路径，等待文本分析器初始化完成
+            setTimeout(() => {
+                this.updateHistoryPath();
+            }, 100);
+        }
 
         // 初始化复制选择按钮为禁用状态
         const copyBtn = this.shadowRoot.querySelector('#copySelectionBtn');
         if (copyBtn) {
             copyBtn.disabled = true;
+        }
+
+        // 重置自动选择开关为开启状态
+        this.autoSelectEnabled = true;
+        const switchEl = this.shadowRoot.querySelector('#autoSelectSwitch');
+        if (switchEl) {
+            switchEl.classList.add('active');
         }
 
         this.setAttribute('visible', '');
@@ -597,10 +566,14 @@ class MessageModal extends HTMLElement {
 
         // 监听文本分析器的选择变化事件
         textAnalyzer.addEventListener('selection-changed', (e) => {
-            // 启用复制选择按钮
+            // 根据是否有有效的选择位置来控制按钮状态
             const copyBtn = this.shadowRoot.querySelector('#copySelectionBtn');
             if (copyBtn) {
-                copyBtn.disabled = false;
+                const hasSelection = e.detail.position &&
+                    e.detail.position.start !== undefined &&
+                    e.detail.position.end !== undefined &&
+                    e.detail.position.start < e.detail.position.end;
+                copyBtn.disabled = !hasSelection;
             }
 
             // 更新历史路径显示
@@ -611,6 +584,12 @@ class MessageModal extends HTMLElement {
 
         // 监听内容替换事件
         textAnalyzer.addEventListener('content-replaced', (e) => {
+            // 内容替换后禁用复制选择按钮
+            const copyBtn = this.shadowRoot.querySelector('#copySelectionBtn');
+            if (copyBtn) {
+                copyBtn.disabled = true;
+            }
+
             // 更新历史路径显示
             setTimeout(() => {
                 this.updateHistoryPath();

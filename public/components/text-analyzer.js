@@ -8,6 +8,8 @@ class TextAnalyzer extends HTMLElement {
         this.data = null;
         this.textHistory = null;  // 文本历史存储实例
         this.lastSelectionPosition = null;  // 记录最后一次选择的位置
+        this.autoSelectEnabled = true;  // 是否启用自动选择功能
+        this.lastExpandedRange = null;  // 记录最后一次扩展的选择范围
 
         const template = document.createElement('template');
         template.innerHTML = `
@@ -125,69 +127,42 @@ class TextAnalyzer extends HTMLElement {
      * 初始化智能选择功能
      */
     initSmartSelection() {
-        let isDoubleClick = false;
+        // 监听选择变化事件
+        document.addEventListener('selectionchange', (e) => {
+            const selection = this.shadowRoot.getSelection();
 
-        // 在 shadowRoot 内监听事件
-        this.shadowRoot.addEventListener('mouseup', (e) => {
-            // 延迟执行，确保选择已完成
-            setTimeout(() => {
-                // 如果是双击事件，不处理
-                if (isDoubleClick) {
-                    isDoubleClick = false;
+            // 检查是否是我们自己触发的扩展
+            if (selection && selection.rangeCount > 0 && this.lastExpandedRange) {
+                const range = selection.getRangeAt(0);
+                if (range.startContainer === this.lastExpandedRange.startContainer &&
+                    range.startOffset === this.lastExpandedRange.startOffset &&
+                    range.endContainer === this.lastExpandedRange.endContainer &&
+                    range.endOffset === this.lastExpandedRange.endOffset) {
+                    // 这是我们自己触发的扩展，忽略
+                    this.lastExpandedRange = null;
                     return;
                 }
+            }
 
-                const selection = this.shadowRoot.getSelection();
+            // 清除扩展记录
+            this.lastExpandedRange = null;
 
-                if (selection && selection.toString().trim()) {
-                    const position = this.expandSelectionToString(selection);
+            if (selection && selection.rangeCount > 0 && selection.toString().trim()) {
+                // 有有效选择
+                const position = this.expandSelectionToString(selection);
 
-                    // 保存选择位置
-                    if (position) {
-                        this.lastSelectionPosition = position;
-                    }
-
-                    // 触发自定义事件通知选择变化
-                    this.dispatchEvent(new CustomEvent('selection-changed', {
-                        detail: {
-                            position: position
-                        },
-                        bubbles: true,
-                        composed: true
-                    }));
-                } else if (selection && selection.toString()) {
-                    // 有选择内容但只有空白字符，清空选择
-                    selection.removeAllRanges();
-                    this.lastSelectionPosition = null;
+                // 保存选择位置
+                if (position) {
+                    this.lastSelectionPosition = position;
                 }
-            }, 10);
-        });
 
-        // 监听键盘事件，支持双击选择
-        this.shadowRoot.addEventListener('dblclick', (e) => {
-            isDoubleClick = true;
-
-            setTimeout(() => {
-                const selection = this.shadowRoot.getSelection();
-
-                if (selection && selection.toString().trim()) {
-                    const position = this.expandSelectionToString(selection);
-
-                    // 保存选择位置
-                    if (position) {
-                        this.lastSelectionPosition = position;
-                    }
-
-                    // 触发自定义事件通知选择变化
-                    this.dispatchEvent(new CustomEvent('selection-changed', {
-                        detail: {
-                            position: position
-                        },
-                        bubbles: true,
-                        composed: true
-                    }));
-                }
-            }, 10);
+                // 触发自定义事件通知选择变化
+                this.notifySelectionChange(position);
+            } else if (this.lastSelectionPosition) {
+                // 选择被清空或内容为空
+                this.lastSelectionPosition = null;
+                this.notifySelectionChange(null);
+            }
         });
     }
 
@@ -254,6 +229,14 @@ class TextAnalyzer extends HTMLElement {
             }
         }
 
+        // 如果自动选择功能已禁用，直接返回当前选择的位置
+        if (!this.autoSelectEnabled) {
+            return {
+                start: startOffset,
+                end: endOffset
+            };
+        }
+
         // 查找完整的字符串边界
         const stringStart = this.findStringBoundary(fullText, startOffset, true);
         const stringEnd = this.findStringBoundary(fullText, endOffset, false);
@@ -285,6 +268,17 @@ class TextAnalyzer extends HTMLElement {
         newRange.setStart(startNode, startNodeOffset);
         newRange.setEnd(endNode, endNodeOffset);
 
+        // 记录扩展前的选择范围
+        const originalRange = selection.getRangeAt(0);
+
+        // 保存新范围的信息
+        this.lastExpandedRange = {
+            startContainer: newRange.startContainer,
+            startOffset: newRange.startOffset,
+            endContainer: newRange.endContainer,
+            endOffset: newRange.endOffset
+        };
+
         selection.removeAllRanges();
         selection.addRange(newRange);
 
@@ -304,6 +298,20 @@ class TextAnalyzer extends HTMLElement {
      */
     findStringBoundary(text, position, findStart) {
         return StringBoundaryFinder.findStringBoundary(text, position, findStart);
+    }
+
+    /**
+     * 触发选择变化事件
+     * @param {object|null} position - 选择位置信息
+     */
+    notifySelectionChange(position) {
+        this.dispatchEvent(new CustomEvent('selection-changed', {
+            detail: {
+                position: position
+            },
+            bubbles: true,
+            composed: true
+        }));
     }
 
     /**
@@ -360,18 +368,6 @@ class TextAnalyzer extends HTMLElement {
                         start: bodyIndex,
                         end: bodyIndex + bodyStr.length
                     };
-
-                    // 触发选择变化事件
-                    this.dispatchEvent(new CustomEvent("selection-changed", {
-                        detail: {
-                            position: {
-                                start: bodyIndex,
-                                end: bodyIndex + bodyStr.length
-                            }
-                        },
-                        bubbles: true,
-                        composed: true
-                    }));
                 }
             }
         } catch (e) {
@@ -381,6 +377,14 @@ class TextAnalyzer extends HTMLElement {
     }
 
  
+    /**
+     * 设置自动选择功能是否启用
+     * @param {boolean} enabled - 是否启用自动选择
+     */
+    setAutoSelectEnabled(enabled) {
+        this.autoSelectEnabled = enabled;
+    }
+
     /**
      * HTML 转义
      * @param {string} text - 需要转义的文本
