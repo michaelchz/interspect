@@ -87,9 +87,29 @@ class TextAnalyzer extends HTMLElement {
             // 对象类型，直接 JSON 化
             const jsonStr = JSON.stringify(this.data.content, null, 2);
             content = `<pre>${this.escapeHtml(jsonStr)}</pre>`;
+        } else if (typeof this.data.content === 'string') {
+            // 字符串类型，尝试解析为 JSON
+            try {
+                // 去除首尾空白字符
+                const trimmed = this.data.content.trim();
+
+                // 检查是否是 JSON 格式
+                if ((trimmed.startsWith('{') && trimmed.endsWith('}')) ||
+                    (trimmed.startsWith('[') && trimmed.endsWith(']'))) {
+                    const parsed = JSON.parse(trimmed);
+                    const jsonStr = JSON.stringify(parsed, null, 2);
+                    content = `<pre>${this.escapeHtml(jsonStr)}</pre>`;
+                } else {
+                    // 不是 JSON，使用 pre 标签保持格式
+                    content = `<pre>${this.escapeHtml(this.data.content)}</pre>`;
+                }
+            } catch (e) {
+                // 解析失败，使用 pre 标签保持格式
+                content = `<pre>${this.escapeHtml(this.data.content)}</pre>`;
+            }
         } else {
-            // 字符串类型，使用 pre 标签保持格式
-            content = `<pre>${this.escapeHtml(this.data.content)}</pre>`;
+            // 其他类型，转换为字符串后显示
+            content = `<pre>${this.escapeHtml(String(this.data.content))}</pre>`;
         }
 
         contentContainer.innerHTML = content;
@@ -120,7 +140,6 @@ class TextAnalyzer extends HTMLElement {
                 }
 
                 const selection = this.shadowRoot.getSelection();
-                console.log('Shadow DOM selection detected:', selection?.toString());
 
                 if (selection && selection.toString().trim()) {
                     this.expandSelectionToString(selection);
@@ -145,7 +164,6 @@ class TextAnalyzer extends HTMLElement {
 
             setTimeout(() => {
                 const selection = this.shadowRoot.getSelection();
-                console.log('Double click selection:', selection?.toString());
 
                 if (selection && selection.toString().trim()) {
                     this.expandSelectionToString(selection);
@@ -167,13 +185,9 @@ class TextAnalyzer extends HTMLElement {
      * @param {Selection} selection - 当前选择对象
      */
     expandSelectionToString(selection) {
-        console.log('expandSelectionToString called with Shadow DOM selection');
         if (!selection.rangeCount) return;
 
         const range = selection.getRangeAt(0);
-        console.log('Shadow DOM range:', range);
-        console.log('Start container:', range.startContainer, 'offset:', range.startOffset);
-        console.log('End container:', range.endContainer, 'offset:', range.endOffset);
 
         // 查找最近的 pre 元素
         let preElement = range.startContainer;
@@ -182,16 +196,12 @@ class TextAnalyzer extends HTMLElement {
         }
 
         if (!preElement || preElement.tagName !== 'PRE') {
-            console.log('No pre element found in selection path');
             return;
         }
-
-        console.log('Found pre element:', preElement);
 
         // 获取完整的文本内容（处理多个文本节点的情况）
         const textNodes = Array.from(preElement.childNodes).filter(node => node.nodeType === Node.TEXT_NODE);
         if (textNodes.length === 0) {
-            console.log('No text nodes found in pre element');
             return;
         }
 
@@ -211,9 +221,6 @@ class TextAnalyzer extends HTMLElement {
             }
             nodeOffsets[i].end = end;
         }
-
-        console.log('Full text length:', fullText.length);
-        console.log('Text nodes count:', textNodes.length);
 
         // 计算选择在整个文本中的位置
         let startOffset = 0;
@@ -235,13 +242,9 @@ class TextAnalyzer extends HTMLElement {
             }
         }
 
-        console.log('Calculated offsets:', startOffset, 'to', endOffset);
-
         // 查找完整的字符串边界
         const stringStart = this.findStringBoundary(fullText, startOffset, true);
         const stringEnd = this.findStringBoundary(fullText, endOffset, false);
-
-        console.log('String boundaries:', stringStart, 'to', stringEnd);
 
         // 根据边界位置找到对应的文本节点和偏移量
         let startNode = null;
@@ -262,12 +265,8 @@ class TextAnalyzer extends HTMLElement {
         }
 
         if (!startNode || !endNode) {
-            console.log('Could not find target nodes');
             return;
         }
-
-        console.log('Target nodes - start:', startNode, 'offset:', startNodeOffset);
-        console.log('Target nodes - end:', endNode, 'offset:', endNodeOffset);
 
         // 创建新的选择范围
         const newRange = document.createRange();
