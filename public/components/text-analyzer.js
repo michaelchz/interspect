@@ -81,6 +81,9 @@ class TextAnalyzer extends HTMLElement {
             // 记录全部文本的选择位置（作为初始状态）
             const originalText = this.textHistory.originalText;
             this.textHistory.recordSelection(0, originalText.length);
+
+            // 检查是否包含 body 字段并自动选择
+            this.checkAndSelectBody();
         } else {
             // 如果没有有效内容，清除历史存储
             this.textHistory = null;
@@ -327,6 +330,54 @@ class TextAnalyzer extends HTMLElement {
             bubbles: true,
             composed: true
         }));
+    }
+
+    /**
+     * 检查并自动选择 body 字段
+     */
+    checkAndSelectBody() {
+        if (!this.textHistory) return;
+
+        const currentText = this.textHistory.getCurrentText();
+
+        try {
+            // 尝试解析当前文本为 JSON
+            const parsed = JSON.parse(currentText);
+
+            // 检查是否有 body 字段
+            if (parsed && parsed.body !== undefined) {
+                // 将 body 部分格式化为字符串
+                const bodyStr = JSON.stringify(parsed.body, null, 2);
+
+                // 在文本中查找 body 部分的位置
+                const bodyIndex = currentText.indexOf(bodyStr);
+                if (bodyIndex !== -1) {
+                    // 记录 body 内容的选择位置
+                    this.textHistory.recordSelection(bodyIndex, bodyIndex + bodyStr.length);
+
+                    // 更新最后选择位置
+                    this.lastSelectionPosition = {
+                        start: bodyIndex,
+                        end: bodyIndex + bodyStr.length
+                    };
+
+                    // 触发选择变化事件
+                    this.dispatchEvent(new CustomEvent("selection-changed", {
+                        detail: {
+                            position: {
+                                start: bodyIndex,
+                                end: bodyIndex + bodyStr.length
+                            }
+                        },
+                        bubbles: true,
+                        composed: true
+                    }));
+                }
+            }
+        } catch (e) {
+            // 解析失败，不是 JSON 格式，不做处理
+            console.warn("Failed to parse JSON for body selection:", e);
+        }
     }
 
  
