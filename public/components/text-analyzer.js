@@ -1,8 +1,13 @@
+// 导入文本历史存储工具类
+import TextHistoryStorage from '../utils/text-history-storage.js';
+
 class TextAnalyzer extends HTMLElement {
     constructor() {
         super();
         this.attachShadow({ mode: 'open' });
         this.data = null;
+        this.textHistory = null;  // 文本历史存储实例
+        this.lastSelectionPosition = null;  // 记录最后一次选择的位置
 
         const template = document.createElement('template');
         template.innerHTML = `
@@ -67,6 +72,20 @@ class TextAnalyzer extends HTMLElement {
      */
     setData(data) {
         this.data = data;
+
+        // 每次设置新数据时创建新的历史存储实例
+        if (data && data.content !== undefined) {
+            // 直接使用原始内容
+            this.textHistory = new TextHistoryStorage(data.content);
+
+            // 记录全部文本的选择位置（作为初始状态）
+            const originalText = this.textHistory.originalText;
+            this.textHistory.recordSelection(0, originalText.length);
+        } else {
+            // 如果没有有效内容，清除历史存储
+            this.textHistory = null;
+        }
+
         this.render();
     }
 
@@ -80,39 +99,15 @@ class TextAnalyzer extends HTMLElement {
         }
 
         const contentContainer = this.shadowRoot.querySelector('#contentContainer');
-        let content = '';
 
-        // 根据数据类型显示内容
-        if (typeof this.data.content === 'object') {
-            // 对象类型，直接 JSON 化
-            const jsonStr = JSON.stringify(this.data.content, null, 2);
-            content = `<pre>${this.escapeHtml(jsonStr)}</pre>`;
-        } else if (typeof this.data.content === 'string') {
-            // 字符串类型，尝试解析为 JSON
-            try {
-                // 去除首尾空白字符
-                const trimmed = this.data.content.trim();
-
-                // 检查是否是 JSON 格式
-                if ((trimmed.startsWith('{') && trimmed.endsWith('}')) ||
-                    (trimmed.startsWith('[') && trimmed.endsWith(']'))) {
-                    const parsed = JSON.parse(trimmed);
-                    const jsonStr = JSON.stringify(parsed, null, 2);
-                    content = `<pre>${this.escapeHtml(jsonStr)}</pre>`;
-                } else {
-                    // 不是 JSON，使用 pre 标签保持格式
-                    content = `<pre>${this.escapeHtml(this.data.content)}</pre>`;
-                }
-            } catch (e) {
-                // 解析失败，使用 pre 标签保持格式
-                content = `<pre>${this.escapeHtml(this.data.content)}</pre>`;
-            }
+        // 从工具类获取当前选择文本
+        if (this.textHistory) {
+            const currentText = this.textHistory.getCurrentText();
+            contentContainer.innerHTML = `<pre>${this.escapeHtml(currentText)}</pre>`;
         } else {
-            // 其他类型，转换为字符串后显示
-            content = `<pre>${this.escapeHtml(String(this.data.content))}</pre>`;
+            // 如果没有历史存储，显示空状态
+            this.showEmptyState();
         }
-
-        contentContainer.innerHTML = content;
     }
 
     /**
@@ -142,11 +137,17 @@ class TextAnalyzer extends HTMLElement {
                 const selection = this.shadowRoot.getSelection();
 
                 if (selection && selection.toString().trim()) {
-                    this.expandSelectionToString(selection);
+                    const position = this.expandSelectionToString(selection);
+
+                    // 保存选择位置
+                    if (position) {
+                        this.lastSelectionPosition = position;
+                    }
 
                     // 触发自定义事件通知选择变化
                     this.dispatchEvent(new CustomEvent('selection-changed', {
                         detail: {
+                            position: position
                         },
                         bubbles: true,
                         composed: true
@@ -154,6 +155,7 @@ class TextAnalyzer extends HTMLElement {
                 } else if (selection && selection.toString()) {
                     // 有选择内容但只有空白字符，清空选择
                     selection.removeAllRanges();
+                    this.lastSelectionPosition = null;
                 }
             }, 10);
         });
@@ -166,11 +168,17 @@ class TextAnalyzer extends HTMLElement {
                 const selection = this.shadowRoot.getSelection();
 
                 if (selection && selection.toString().trim()) {
-                    this.expandSelectionToString(selection);
+                    const position = this.expandSelectionToString(selection);
+
+                    // 保存选择位置
+                    if (position) {
+                        this.lastSelectionPosition = position;
+                    }
 
                     // 触发自定义事件通知选择变化
                     this.dispatchEvent(new CustomEvent('selection-changed', {
                         detail: {
+                            position: position
                         },
                         bubbles: true,
                         composed: true
@@ -183,9 +191,10 @@ class TextAnalyzer extends HTMLElement {
     /**
      * 扩展选择到完整字符串（使用 Shadow DOM selection）
      * @param {Selection} selection - 当前选择对象
+     * @returns {object} 位置信息 {start, end}
      */
     expandSelectionToString(selection) {
-        if (!selection.rangeCount) return;
+        if (!selection.rangeCount) return null;
 
         const range = selection.getRangeAt(0);
 
@@ -265,7 +274,7 @@ class TextAnalyzer extends HTMLElement {
         }
 
         if (!startNode || !endNode) {
-            return;
+            return null;
         }
 
         // 创建新的选择范围
@@ -275,6 +284,12 @@ class TextAnalyzer extends HTMLElement {
 
         selection.removeAllRanges();
         selection.addRange(newRange);
+
+        // 返回扩展后的位置信息
+        return {
+            start: stringStart,
+            end: stringEnd
+        };
     }
 
     /**
@@ -292,72 +307,29 @@ class TextAnalyzer extends HTMLElement {
      * 使用选中的文本替换当前显示的内容
      */
     useSelectedText() {
-        // 获取当前选中的文本
-        const selection = this.shadowRoot.getSelection();
-        const selectedText = selection ? selection.toString().trim() : '';
+        if (!this.textHistory || !this.lastSelectionPosition) return;
 
-        if (!selectedText) return;
+        // 使用记录的位置信息
+        const { start, end } = this.lastSelectionPosition;
 
-        // 解析带引号的字符串，获取实际值
-        const actualText = this.parseQuotedString(selectedText);
+        // 记录选择位置到历史存储
+        this.textHistory.recordSelection(start, end);
 
-        // 创建新的消息数据，使用实际的文本值
-        const newData = {
-            type: 'string',
-            content: actualText
-        };
-
-        // 更新数据并重新渲染
-        this.setData(newData);
+        // 重新渲染显示新的内容
+        this.render();
 
         // 触发内容变化事件
         this.dispatchEvent(new CustomEvent('content-replaced', {
             detail: {
-                selectedText: actualText
+                start: start,
+                end: end
             },
             bubbles: true,
             composed: true
         }));
     }
 
-    /**
-     * 解析转义的字符串
-     * @param {string} text - 带引号的字符串
-     * @returns {string} 解析后的实际值
-     */
-    parseQuotedString(text) {
-        if (!text || typeof text !== 'string') return text;
-
-        const trimmed = text.trim();
-
-        // 检查是否是带引号的字符串
-        if ((trimmed.startsWith('"') && trimmed.endsWith('"')) ||
-            (trimmed.startsWith("'") && trimmed.endsWith("'"))) {
-            try {
-                // 处理单引号字符串
-                if (trimmed.startsWith("'")) {
-                    // 转换为 JSON 格式：转义内部双引号和反斜杠
-                    const normalized = '"' +
-                        trimmed
-                            .slice(1, -1)  // 去掉外层单引号
-                            .replace(/"/g, '\\"')  // 转义内部双引号
-                            .replace(/\\/g, '\\\\')  // 转义反斜杠
-                        + '"';
-                    return JSON.parse(normalized);
-                } else {
-                    // 双引号字符串直接解析
-                    return JSON.parse(trimmed);
-                }
-            } catch (e) {
-                console.warn('Failed to parse quoted string:', e);
-                return text;
-            }
-        }
-
-        // 不是带引号的字符串，原样返回
-        return text;
-    }
-
+ 
     /**
      * HTML 转义
      * @param {string} text - 需要转义的文本
