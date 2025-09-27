@@ -35,17 +35,10 @@ export class InspectController {
     // 添加客户端到 SSE 服务
     this.sseService.addClient(clientId, res);
 
-    // 发送连接成功消息
-    res.write(
-      `data: ${JSON.stringify({
-        type: "connection",
-        message: "SSE connection established",
-        clientId,
-        timestamp: new Date().toISOString(),
-      })}\n\n`,
-    );
+    // 发送一个注释来触发客户端的 onopen 事件
+    res.write(":connected\n\n");
 
-    this.logger.log(`SSE connection established: ${clientId}`);
+    this.logger.log(`SSE client connected: ${clientId}`);
 
     // 心跳定时器 - 每 10 秒发送一次心跳
     const heartbeatInterval = setInterval(() => {

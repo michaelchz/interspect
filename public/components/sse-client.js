@@ -186,9 +186,10 @@ class SSEClient extends HTMLElement {
 
         try {
             this.eventSource = new EventSource(this.endpoint);
-            this.updateStatus('connected', '已连接');
+            this.updateStatus('connected', '连接中...');
 
             this.eventSource.onopen = () => {
+                this.updateStatus('connected', '已连接');
                 this.addMessage('系统', 'SSE 连接已建立');
                 this.shadowRoot.querySelector('#connect-btn').disabled = true;
                 this.shadowRoot.querySelector('#disconnect-btn').disabled = false;
