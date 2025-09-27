@@ -3,6 +3,7 @@ class SSEMessage extends HTMLElement {
         super();
         this.attachShadow({ mode: 'open' });
         this.messageData = null;
+        this.isActive = false;
 
         const template = document.createElement('template');
         template.innerHTML = `
@@ -20,6 +21,7 @@ class SSEMessage extends HTMLElement {
                     font-size: 12px;
                     cursor: pointer;
                     transition: background-color 0.2s;
+                    position: relative;
                 }
 
                 .message:hover {
@@ -77,6 +79,22 @@ class SSEMessage extends HTMLElement {
 
                 .message-error .message-icon {
                     color: #F44336;
+                }
+
+                /* 激活状态样式 */
+                .message.active {
+                    border-left: 3px solid #2196F3;
+                    background-color: rgba(33, 150, 243, 0.1);
+                }
+
+                .message.active::before {
+                    content: '👁';
+                    position: absolute;
+                    right: 8px;
+                    top: 50%;
+                    transform: translateY(-50%);
+                    font-size: 12px;
+                    opacity: 0.6;
                 }
             </style>
             <div class="message">
@@ -164,10 +182,31 @@ class SSEMessage extends HTMLElement {
     }
 
     /**
+     * 设置消息的激活状态
+     * @param {boolean} active 是否激活
+     */
+    setActive(active) {
+        this.isActive = active;
+        const messageEl = this.shadowRoot.querySelector('.message');
+        if (active) {
+            messageEl.classList.add('active');
+        } else {
+            messageEl.classList.remove('active');
+        }
+    }
+
+    /**
      * 显示消息弹窗
      */
     showMessageModal() {
         if (!this.messageData) return;
+
+        // 触发消息激活事件，通知 SSEClient 切换激活状态
+        this.dispatchEvent(new CustomEvent('message-activated', {
+            bubbles: true,
+            composed: true,
+            detail: { messageElement: this }
+        }));
 
         // 创建或获取弹窗组件
         let modal = document.querySelector('message-modal');

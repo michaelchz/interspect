@@ -6,6 +6,7 @@ class SSEClient extends HTMLElement {
         this.messages = [];
         this.lastHeartbeatTime = 0;
         this.heartbeatCheckInterval = null;
+        this.activeMessageRef = null; // 当前激活的消息引用
 
         const template = document.createElement('template');
         template.innerHTML = `
@@ -181,6 +182,11 @@ class SSEClient extends HTMLElement {
         this.shadowRoot.querySelector('#disconnect-btn').addEventListener('click', () => this.disconnect());
         this.shadowRoot.querySelector('#clear-btn').addEventListener('click', () => this.clearMessages());
 
+        // 监听消息激活事件
+        this.addEventListener('message-activated', (e) => {
+            this.switchActiveMessage(e.detail.messageElement);
+        });
+
         // 移除窗口大小监听器，使用 CSS flex 布局自动调整
 
         // 获取默认端点
@@ -263,7 +269,13 @@ class SSEClient extends HTMLElement {
         // 限制消息数量
         const messages = container.querySelectorAll('sse-message');
         if (messages.length >= 50) {
-            messages[0].remove();
+            const removedMessage = messages[0];
+            // 如果移除的是激活的消息，重置激活状态
+            if (this.activeMessageRef === removedMessage) {
+                this.activeMessageRef.setActive(false);
+                this.activeMessageRef = null;
+            }
+            removedMessage.remove();
         }
 
         container.appendChild(messageEl);
@@ -337,10 +349,31 @@ class SSEClient extends HTMLElement {
   clearMessages() {
         const container = this.shadowRoot.querySelector('#messages-container');
         container.innerHTML = '<div class="message"><div class="message-time">消息已清空</div></div>';
+
+        // 清空消息时重置激活状态
+        if (this.activeMessageRef) {
+            this.activeMessageRef.setActive(false);
+            this.activeMessageRef = null;
+        }
     }
 
     disconnectedCallback() {
         this.disconnect();
+    }
+
+    /**
+     * 切换激活消息
+     * @param {SSEMessage} newMessage 新的激活消息
+     */
+    switchActiveMessage(newMessage) {
+        // 如果有之前激活的消息，取消其激活状态
+        if (this.activeMessageRef && this.activeMessageRef !== newMessage) {
+            this.activeMessageRef.setActive(false);
+        }
+
+        // 设置新的激活消息
+        this.activeMessageRef = newMessage;
+        newMessage.setActive(true);
     }
 }
 
