@@ -3,10 +3,8 @@ class SSEClient extends HTMLElement {
         super();
         this.attachShadow({ mode: 'open' });
         this.eventSource = null;
-        this.messages = [];
         this.lastHeartbeatTime = 0;
         this.heartbeatCheckInterval = null;
-        this.activeMessageRef = null; // 当前激活的消息引用
 
         const template = document.createElement('template');
         template.innerHTML = `
@@ -20,17 +18,12 @@ class SSEClient extends HTMLElement {
                     border-radius: 8px;
                     box-shadow: 0 4px 10px rgba(0, 0, 0, 0.2);
                     padding: 20px;
-                    transition: transform 0.2s, box-shadow 0.2s;
+                    transition: box-shadow 0.2s;
                     height: 100%;
-                    max-height: 100%;
                     display: flex;
                     flex-direction: column;
                     box-sizing: border-box;
                     overflow: hidden;
-                }
-
-                .sse-container:hover {
-                    /* 移除上移动画 */
                 }
 
                 .sse-header {
@@ -136,17 +129,9 @@ class SSEClient extends HTMLElement {
                     background-color: #555;
                 }
 
-                .messages-container {
+                #messages-container-wrapper {
                     flex: 1;
                     min-height: 0;
-                    overflow-y: auto;
-                    border: 1px solid var(--border-color);
-                    border-radius: 4px;
-                    padding: 10px;
-                    background-color: rgba(0, 0, 0, 0.2);
-                    /* 确保容器不会超出父容器 */
-                    height: 100%;
-                    max-height: 100%;
                 }
 
             </style>
@@ -167,10 +152,8 @@ class SSEClient extends HTMLElement {
                     <button id="clear-btn" class="btn btn-secondary">清空消息</button>
                 </div>
 
-                <div id="messages-container" class="messages-container">
-                    <div class="message">
-                        <div class="message-time">等待连接...</div>
-                    </div>
+                <div id="messages-container-wrapper">
+                    <sse-message-list id="message-list"></sse-message-list>
                 </div>
             </div>
         `;
@@ -182,15 +165,17 @@ class SSEClient extends HTMLElement {
         this.shadowRoot.querySelector('#disconnect-btn').addEventListener('click', () => this.disconnect());
         this.shadowRoot.querySelector('#clear-btn').addEventListener('click', () => this.clearMessages());
 
-        // 监听消息激活事件
-        this.addEventListener('message-activated', (e) => {
-            this.switchActiveMessage(e.detail.messageElement);
-        });
-
-        // 移除窗口大小监听器，使用 CSS flex 布局自动调整
-
+  
         // 获取默认端点
         this.endpoint = this.getAttribute('endpoint') || '/inspect/sse';
+    }
+
+    /**
+     * 获取消息列表组件
+     * @returns {SSEMessageList} 消息列表组件
+     */
+    getMessageList() {
+        return this.shadowRoot.querySelector('#message-list');
     }
 
     connect() {
@@ -245,6 +230,7 @@ class SSEClient extends HTMLElement {
             this.eventSource = null;
             this.updateStatus('disconnected', '已断开');
             this.addMessage('系统', 'SSE 连接已断开');
+            this.getMessageList().clearMessages();
             this.shadowRoot.querySelector('#connect-btn').disabled = false;
             this.shadowRoot.querySelector('#disconnect-btn').disabled = true;
 
@@ -254,32 +240,8 @@ class SSEClient extends HTMLElement {
     }
 
     addMessage(type, content) {
-        const container = this.shadowRoot.querySelector('#messages-container');
-
-        // 清除占位消息
-        const placeholder = container.querySelector('.message .message-time');
-        if (placeholder && (placeholder.textContent.includes('等待连接') || placeholder.textContent.includes('消息已清空'))) {
-            container.innerHTML = '';
-        }
-
-        // 创建新的消息元素
-        const messageEl = document.createElement('sse-message');
-        messageEl.setMessage(type, content);
-
-        // 限制消息数量
-        const messages = container.querySelectorAll('sse-message');
-        if (messages.length >= 50) {
-            const removedMessage = messages[0];
-            // 如果移除的是激活的消息，重置激活状态
-            if (this.activeMessageRef === removedMessage) {
-                this.activeMessageRef.setActive(false);
-                this.activeMessageRef = null;
-            }
-            removedMessage.remove();
-        }
-
-        container.appendChild(messageEl);
-        container.scrollTop = container.scrollHeight;
+        const messageList = this.getMessageList();
+        messageList.addMessage(type, content);
     }
 
   
@@ -296,12 +258,6 @@ class SSEClient extends HTMLElement {
         } else {
             indicator.style.display = 'none';
         }
-    }
-
-    adjustMessagesContainerHeight() {
-        // 使用 CSS flex 布局，不需要手动计算高度
-        // flex: 1 和 min-height: 0 已经确保容器不会超出父容器
-        // 这个方法保留用于可能的 future 调整
     }
 
     triggerHeartbeat() {
@@ -346,35 +302,15 @@ class SSEClient extends HTMLElement {
         }
     }
 
-  clearMessages() {
-        const container = this.shadowRoot.querySelector('#messages-container');
-        container.innerHTML = '<div class="message"><div class="message-time">消息已清空</div></div>';
-
-        // 清空消息时重置激活状态
-        if (this.activeMessageRef) {
-            this.activeMessageRef.setActive(false);
-            this.activeMessageRef = null;
-        }
+    clearMessages() {
+        const messageList = this.getMessageList();
+        messageList.clearMessages();
     }
 
     disconnectedCallback() {
         this.disconnect();
     }
 
-    /**
-     * 切换激活消息
-     * @param {SSEMessage} newMessage 新的激活消息
-     */
-    switchActiveMessage(newMessage) {
-        // 如果有之前激活的消息，取消其激活状态
-        if (this.activeMessageRef && this.activeMessageRef !== newMessage) {
-            this.activeMessageRef.setActive(false);
-        }
-
-        // 设置新的激活消息
-        this.activeMessageRef = newMessage;
-        newMessage.setActive(true);
-    }
 }
 
 customElements.define('sse-client', SSEClient);
