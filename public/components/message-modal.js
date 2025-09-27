@@ -70,42 +70,101 @@ class MessageModal extends HTMLElement {
                     align-items: center;
                 }
 
-                .modal-title {
-                    font-size: 16px;
-                    font-weight: 600;
-                    color: var(--secondary-color);
+                .header-left {
                     display: flex;
                     align-items: center;
-                    gap: 8px;
+                    gap: 10px;
                 }
+
 
                 .history-path {
                     display: flex;
                     align-items: center;
-                    gap: 4px;
-                    font-size: 14px;
+                    gap: 8px;
+                    font-size: 13px;
                     color: #888;
+                    padding: 4px 12px;
+                    background: rgba(255, 255, 255, 0.03);
+                    border-radius: 20px;
+                    border: 1px solid rgba(255, 255, 255, 0.08);
+                    backdrop-filter: blur(10px);
+                    -webkit-backdrop-filter: blur(10px);
                 }
 
                 .history-path-item {
                     cursor: pointer;
-                    padding: 2px 6px;
-                    border-radius: 3px;
-                    transition: background-color 0.2s;
+                    padding: 5px 12px;
+                    border-radius: 12px;
+                    transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+                    position: relative;
+                    font-weight: 500;
+                    letter-spacing: 0.02em;
+                    color: rgba(255, 255, 255, 0.7);
+                }
+
+                .history-path-item::before {
+                    content: '';
+                    position: absolute;
+                    top: 0;
+                    left: 0;
+                    right: 0;
+                    bottom: 0;
+                    background: linear-gradient(135deg, rgba(99, 102, 241, 0.2), rgba(168, 85, 247, 0.2));
+                    border-radius: 12px;
+                    opacity: 0;
+                    transition: opacity 0.3s ease;
                 }
 
                 .history-path-item:hover {
-                    background-color: rgba(255, 255, 255, 0.1);
                     color: #fff;
+                    transform: translateY(-1px);
+                }
+
+                .history-path-item:hover::before {
+                    opacity: 1;
                 }
 
                 .history-path-item.active {
-                    color: var(--secondary-color);
+                    color: #fff;
+                    background: linear-gradient(135deg, var(--primary-color), var(--secondary-color));
+                    box-shadow: 0 2px 8px rgba(99, 102, 241, 0.3);
                 }
 
                 .history-path-separator {
-                    color: #666;
-                    margin: 0 2px;
+                    color: rgba(255, 255, 255, 0.2);
+                    margin: 0 -4px;
+                    font-size: 12px;
+                    font-weight: bold;
+                }
+
+                .apply-btn {
+                    cursor: pointer;
+                    padding: 5px 16px;
+                    border-radius: 12px;
+                    transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+                    font-weight: 500;
+                    letter-spacing: 0.02em;
+                    color: rgba(255, 255, 255, 0.7);
+                    background: rgba(255, 255, 255, 0.03);
+                    border: 1px solid rgba(255, 255, 255, 0.08);
+                    font-size: 13px;
+                    white-space: nowrap;
+                }
+
+                .apply-btn:hover:not(:disabled) {
+                    transform: translateY(-1px);
+                }
+
+                .apply-btn:not(:disabled) {
+                    background: linear-gradient(135deg, var(--primary-color), var(--secondary-color));
+                    color: #fff;
+                    border: 1px solid rgba(255, 255, 255, 0.2);
+                    box-shadow: 0 2px 8px rgba(99, 102, 241, 0.3);
+                }
+
+                .apply-btn:disabled {
+                    opacity: 0.4;
+                    cursor: not-allowed;
                 }
 
                 .modal-close {
@@ -129,29 +188,6 @@ class MessageModal extends HTMLElement {
                     color: #fff;
                 }
 
-                .copy-selection-btn {
-                    background: none;
-                    border: none;
-                    color: #888;
-                    font-size: 16px;
-                    cursor: pointer;
-                    padding: 6px 8px;
-                    border-radius: 4px;
-                    transition: all 0.2s;
-                    display: flex;
-                    align-items: center;
-                    justify-content: center;
-                }
-
-                .copy-selection-btn:hover {
-                    background-color: rgba(255, 255, 255, 0.1);
-                    color: var(--primary-color);
-                }
-
-                .copy-selection-btn:disabled {
-                    opacity: 0.5;
-                    cursor: not-allowed;
-                }
 
                 .modal-controls {
                     display: flex;
@@ -264,9 +300,9 @@ class MessageModal extends HTMLElement {
             <div class="modal-overlay" id="overlay"></div>
             <div class="modal-container" id="modalContainer">
                 <div class="modal-header">
-                    <div class="modal-title">
-                        <span>消息详情</span>
+                    <div class="header-left">
                         <div class="history-path" id="historyPath"></div>
+                        <button class="apply-btn" id="applyBtn" title="提取选中文本" disabled>提取</button>
                     </div>
                     <div class="modal-controls">
                         <div class="auto-select-control">
@@ -275,11 +311,6 @@ class MessageModal extends HTMLElement {
                                 <div class="switch-slider"></div>
                             </div>
                         </div>
-                        <button class="copy-selection-btn" id="copySelectionBtn" title="使用选中内容">
-                            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                                <path d="M8 5H6a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2v-1M8 5a2 2 0 002 2h2a2 2 0 002-2M8 5a2 2 0 012-2h2a2 2 0 012 2m0 0h2a2 2 0 012 2v3m2 4H10m0 0l3-3m-3 3l3 3"/>
-                            </svg>
-                        </button>
                         <button class="modal-close" id="closeBtn">&times;</button>
                     </div>
                 </div>
@@ -300,7 +331,8 @@ class MessageModal extends HTMLElement {
         // 绑定事件
         this.shadowRoot.querySelector('#overlay').addEventListener('click', () => this.hide());
         this.shadowRoot.querySelector('#closeBtn').addEventListener('click', () => this.hide());
-        this.shadowRoot.querySelector('#copySelectionBtn').addEventListener('click', () => {
+        // 绑定应用按钮点击事件
+        this.shadowRoot.querySelector('#applyBtn').addEventListener('click', () => {
             const textAnalyzer = this.shadowRoot.querySelector('#textAnalyzer');
             if (textAnalyzer && typeof textAnalyzer.useSelectedText === 'function') {
                 textAnalyzer.useSelectedText();
@@ -533,12 +565,7 @@ class MessageModal extends HTMLElement {
             }, 100);
         }
 
-        // 初始化复制选择按钮为禁用状态
-        const copyBtn = this.shadowRoot.querySelector('#copySelectionBtn');
-        if (copyBtn) {
-            copyBtn.disabled = true;
-        }
-
+  
         // 重置自动选择开关为开启状态
         this.autoSelectEnabled = true;
         const switchEl = this.shadowRoot.querySelector('#autoSelectSwitch');
@@ -567,28 +594,25 @@ class MessageModal extends HTMLElement {
         // 监听文本分析器的选择变化事件
         textAnalyzer.addEventListener('selection-changed', (e) => {
             // 根据是否有有效的选择位置来控制按钮状态
-            const copyBtn = this.shadowRoot.querySelector('#copySelectionBtn');
-            if (copyBtn) {
+            const applyBtn = this.shadowRoot.querySelector('#applyBtn');
+            if (applyBtn) {
                 const hasSelection = e.detail.position &&
                     e.detail.position.start !== undefined &&
                     e.detail.position.end !== undefined &&
                     e.detail.position.start < e.detail.position.end;
-                copyBtn.disabled = !hasSelection;
+                applyBtn.disabled = !hasSelection;
             }
-
-            // 更新历史路径显示
-            setTimeout(() => {
-                this.updateHistoryPath();
-            }, 50);
         });
 
         // 监听内容替换事件
         textAnalyzer.addEventListener('content-replaced', (e) => {
-            // 内容替换后禁用复制选择按钮
-            const copyBtn = this.shadowRoot.querySelector('#copySelectionBtn');
-            if (copyBtn) {
-                copyBtn.disabled = true;
-            }
+            // 内容替换后禁用按钮
+            setTimeout(() => {
+                const applyBtn = this.shadowRoot.querySelector('#applyBtn');
+                if (applyBtn) {
+                    applyBtn.disabled = true;
+                }
+            }, 50);
 
             // 更新历史路径显示
             setTimeout(() => {
