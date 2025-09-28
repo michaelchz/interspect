@@ -42,9 +42,6 @@ class SSEMessageList extends HTMLElement {
                 }
             </style>
             <div id="messages-container" class="messages-container">
-                <div class="message">
-                    <div class="message-time">等待连接...</div>
-                </div>
             </div>
         `;
 
@@ -66,7 +63,7 @@ class SSEMessageList extends HTMLElement {
 
         // 清除占位消息
         const placeholder = container.querySelector('.message .message-time');
-        if (placeholder && (placeholder.textContent.includes('等待连接') || placeholder.textContent.includes('消息已清空'))) {
+        if (placeholder && placeholder.textContent.includes('消息已清空')) {
             container.innerHTML = '';
         }
 
