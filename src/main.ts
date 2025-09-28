@@ -22,7 +22,19 @@ async function bootstrap() {
   app.enableShutdownHooks();
 
   // 先注册静态服务
-  app.use("/fusion", express.static(join(__dirname, "..", "dist", "public")));
+  app.use(
+    "/interspect/web",
+    express.static(join(__dirname, "..", "dist", "public")),
+  );
+
+  // 添加 /interspect 重定向到 /interspect/web/
+  app.use("/interspect", (req: Request, res: Response, next: NextFunction) => {
+    if (req.path === "/") {
+      // 如果访问的是 /interspect，重定向到 /interspect/web/
+      return res.redirect(301, "/interspect/web/");
+    }
+    next();
+  });
 
   // 重要：代理路由必须在中间件之前注册
   // 这样代理可以直接访问原始请求流

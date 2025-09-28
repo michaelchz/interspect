@@ -239,36 +239,7 @@
         // 每分钟更新一次时间
         setInterval(updateTime, 60000);
 
-        function getFusionToken() {
-            try {
-                const credentialsString = localStorage.getItem('servercredentials3');
-                if (!credentialsString) {
-                    console.warn('servercredentials3 not found in local storage.');
-                    return null;
-                }
-                const credentials = JSON.parse(credentialsString);
-                if (!credentials || !credentials.Servers || credentials.Servers.length === 0) {
-                    console.warn('Invalid servercredentials3 format.');
-                    return null;
-                }
-                const server = credentials.Servers[0];
-                const vUserId = server.UserId;
-                if (!vUserId || !server.Users || server.Users.length === 0) {
-                    console.warn('UserId or Users array not found in servercredentials3.');
-                    return null;
-                }
-                const user = server.Users.find(u => u.UserId === vUserId);
-                if (user && user.AccessToken) {
-                    return user.AccessToken;
-                }
-                console.warn('AccessToken not found for the current UserId.');
-                return null;
-            } catch (error) {
-                console.error('Error parsing servercredentials3 from local storage:', error);
-                return null;
-            }
-        }
-
+        
         function formatUptime(seconds) {
             const days = Math.floor(seconds / (24 * 60 * 60));
             seconds -= days * 24 * 60 * 60;
@@ -292,17 +263,12 @@
 
         async function fetchDashboardMetrics() {
             try {
-                const token = getFusionToken();
-                const headers = token ? { 'x-fusion-token': token } : {};
-                const response = await fetch('/fusion/metrics', { headers }); // Single endpoint
-                if (response.status === 401) {
-                    updateTime('授权失败，请重新登录。');
-                    clearInterval(metricsIntervalId); // Stop further updates
-                    return;
-                }
+                const response = await fetch('/interspect/metrics'); // Single endpoint
                 const data = await response.json();
 
-                
+                // 保存数据供配置更新使用
+                window.lastMetricsData = data;
+
                 // Update Static Proxy Service Data Card
                 const staticHttpCounts = Object.entries(data.static.httpCounts).map(([code, count]) => ({
                     label: `-- HTTP ${code}`,
@@ -352,6 +318,9 @@
 
                 // Update last updated time
                 updateTime();
+
+                // 同时更新配置数据
+                fetchDashboardConfig();
             } catch (error) {
                 console.error('获取仪表盘统计数据失败:', error);
                 updateTime('获取数据失败。');
@@ -360,50 +329,28 @@
 
         async function fetchDashboardConfig() {
             try {
-                const token = getFusionToken();
-                const headers = token ? { 'x-fusion-token': token } : {};
-                const response = await fetch('/fusion/config/dashboard', { headers });
-                if (response.status === 401) {
-                    updateTime('授权失败，请重新登录。');
-                    clearInterval(metricsIntervalId); // Stop further updates
-                    return;
-                }
-                const data = await response.json();
-
-                // Helper function to format seconds into HH:mm:ss
-                function formatSeconds(seconds) {
-                    const h = Math.floor(seconds / 3600);
-                    const m = Math.floor((seconds % 3600) / 60);
-                    const s = seconds % 60;
-                    return [h, m, s]
-                        .map(v => v < 10 ? "0" + v : v)
-                        .filter((v, i) => v !== "00" || i > 0) // Remove leading "00" for hours/minutes if they are zero
-                        .join(':');
-                }
-
-                // Update Environment Config Card
+                // 配置数据已经包含在 fetchDashboardMetrics 中了，直接使用
                 const envConfigData = [];
 
                 // Add Target server URL
-                if (data.environment.targetServerUrl) {
-                    envConfigData.push({ label: '目标服务器', value: data.environment.targetServerUrl });
+                if (window.lastMetricsData?.environment?.targetServerUrl) {
+                    envConfigData.push({ label: '目标服务器', value: window.lastMetricsData.environment.targetServerUrl });
                 } else {
                     envConfigData.push({ label: '目标服务器', value: '未配置' });
                 }
 
                 // Add SSE connections
-                const sseConnections = data.interspect ? data.interspect.sseConnections || 0 : 0;
+                const sseConnections = window.lastMetricsData?.interspect?.sseConnections || 0;
                 envConfigData.push({ label: 'SSE连接数', value: sseConnections.toString() });
 
                 // Add uptime from interspect data
-                const uptime = data.interspect ? data.interspect.uptime || 'N/A' : 'N/A';
+                const uptime = window.lastMetricsData?.interspect?.uptime || 'N/A';
                 envConfigData.push({ label: '应用运行时间', value: typeof uptime === 'number' ? formatUptime(uptime) : uptime });
 
                 document.querySelector('#env-config-card').setData(envConfigData);
 
             } catch (error) {
-                console.error('获取仪表盘配置数据失败:', error);
-                updateTime('获取配置失败。');
+                console.error('更新仪表盘配置数据失败:', error);
                 document.querySelector('#env-config-card').setData([
                     { label: '目标服务器', value: '加载失败' }
                 ]);
