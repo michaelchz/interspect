@@ -13,6 +13,15 @@
             --card-bg: #181818;
             --text-color: #fff;
             --border-color: #444;
+            /* 标题相关变量 */
+            --title-font-size: 28px;
+            --title-font-weight: 300;
+            --title-letter-spacing: 2px;
+            --version-font-size: 16px;
+            --version-font-weight: 400;
+            --version-letter-spacing: 1px;
+            /* 动画相关变量 */
+            --scan-accent-color: #00d4ff;
         }
         
         * {
@@ -50,15 +59,61 @@
         }
         
         .header h1 {
+            font-weight: var(--title-font-weight);
+            letter-spacing: var(--title-letter-spacing);
+            font-size: var(--title-font-size);
+            text-transform: uppercase;
+            text-shadow: 0 0 30px rgba(106, 78, 255, 0.5);
+        }
+
+        .title-prefix,
+        .title-suffix {
             color: var(--secondary-color);
-            font-weight: 500;
+            opacity: 0.6;
+            font-weight: 200;
+        }
+
+        .title-main {
+            background: linear-gradient(45deg, #6a4eff, #00d4ff);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+        }
+
+          .version-info {
+            font-weight: var(--version-font-weight);
+            font-size: var(--version-font-size);
+            color: var(--text-color);
+            opacity: 0.9;
+            letter-spacing: var(--version-letter-spacing);
+        }
+
+        .title-accent {
+            font-weight: 600;
+            position: relative;
+        }
+
+        .title-accent::after {
+            content: '';
+            position: absolute;
+            bottom: -2px;
+            left: 0;
+            right: 0;
+            height: 1px;
+            background: linear-gradient(90deg, transparent, var(--scan-accent-color), transparent);
+            animation: scan 3s linear infinite;
+        }
+
+        @keyframes scan {
+            0% { transform: translateX(-100%); }
+            100% { transform: translateX(100%); }
         }
         
         .main-layout {
             display: flex;
             gap: 20px;
             margin-bottom: 15px;
-            height: calc(100vh - 150px); /* 减去 header 和 footer 的高度 */
+            height: calc(100vh - 115px); /* 减去 header 和 footer 的高度 */
         }
 
         .left-column {
@@ -127,23 +182,20 @@
 <body>
     <div class="dashboard">
         <div class="header">
-            <h1>系统概况</h1>
+            <h1><span class="title-prefix">『</span><span class="title-main">INTER</span><span class="title-main title-accent">SPECT</span><span class="title-suffix">』</span> <span class="version-prefix version-info">v</span><span id="dashboard-version" class="version-info">__APP_VERSION__</span></h1>
             <div>上次更新: <span id="update-time"></span></div>
         </div>
         
         <div class="main-layout">
             <div class="left-column">
-                <info-card id="static-proxy-card" title="静态代理服务"></info-card>
-                <info-card id="websocket-card" title="WebSocket服务"></info-card>
-                <info-card id="env-config-card" title="环境变量"></info-card>
+                <info-card id="static-proxy-card" title="HTTP代理服务"></info-card>
+                <info-card id="websocket-card" title="WebSocket代理服务"></info-card>
+                <info-card id="env-config-card" title="InterSpect状态"></info-card>
             </div>
             <div class="right-column">
                 <sse-client endpoint="/inspect/sse"></sse-client>
             </div>
         </div>
-    <footer>
-        <p>InterSpect v<span id="app-version">__APP_VERSION__</span> up for <span id="app-uptime"></span></p>
-    </footer>
     </div>
 
     <script type="module" src="components/info-card.js"></script>
@@ -257,8 +309,8 @@
                     value: count.toLocaleString()
                 }));
                 document.querySelector('#static-proxy-card').setData([
-                    { label: '静态·连接池(活跃/空闲) HTTP', value: `${data.agentStatus.static.http.active}/${data.agentStatus.static.http.idle}` },
-                    { label: '静态·连接池(活跃/空闲) HTTPS', value: `${data.agentStatus.static.https.active}/${data.agentStatus.static.https.idle}` },
+                    { label: '连接池(活跃/空闲) HTTP', value: `${data.agentStatus.static.http.active}/${data.agentStatus.static.http.idle}` },
+                    { label: '连接池(活跃/空闲) HTTPS', value: `${data.agentStatus.static.https.active}/${data.agentStatus.static.https.idle}` },
                     { label: '请求总数量', value: data.static.requestCount.toLocaleString() },
                     ...staticHttpCounts
                 ]);
@@ -266,14 +318,14 @@
                 
                 // Update WebSocket Service Data Card
                 const wsData = data.webSocket || {};
-                
+
                 // 确保 websocket-card 元素存在
                 const websocketCard = document.querySelector('#websocket-card');
                 if (!websocketCard) {
                     console.error('找不到 #websocket-card 元素');
                     return;
                 }
-                
+
                 const websocketCardData = [
                     { label: '当前客户端连接', value: (wsData.connections?.current?.clients || 0).toLocaleString() },
                     { label: '当前服务器连接', value: (wsData.connections?.current?.servers || 0).toLocaleString() },
@@ -282,7 +334,7 @@
                     { label: '重连(成功/失败)', value: `${(wsData.reconnections?.successes || 0).toLocaleString()}/${(wsData.reconnections?.failures || 0).toLocaleString()}` },
                     { label: '平均消息处理时间', value: `${(wsData.performance?.averageMessageProcessingTime || 0).toFixed(2)}ms` }
                 ];
-                
+
                 // Add error counts if they exist
                 if (wsData.errors) {
                     websocketCardData.push(
@@ -298,14 +350,8 @@
                     console.error('设置数据时出错:', error);
                 }
 
-                // Update uptime
-                if (data.uptime) {
-                    document.getElementById('app-uptime').textContent = formatUptime(data.uptime);
-                }
-
                 // Update last updated time
                 updateTime();
-
             } catch (error) {
                 console.error('获取仪表盘统计数据失败:', error);
                 updateTime('获取数据失败。');
@@ -344,8 +390,15 @@
                 } else {
                     envConfigData.push({ label: '目标服务器', value: '未配置' });
                 }
-                
-                                
+
+                // Add SSE connections
+                const sseConnections = data.interspect ? data.interspect.sseConnections || 0 : 0;
+                envConfigData.push({ label: 'SSE连接数', value: sseConnections.toString() });
+
+                // Add uptime from interspect data
+                const uptime = data.interspect ? data.interspect.uptime || 'N/A' : 'N/A';
+                envConfigData.push({ label: '应用运行时间', value: typeof uptime === 'number' ? formatUptime(uptime) : uptime });
+
                 document.querySelector('#env-config-card').setData(envConfigData);
 
             } catch (error) {
