@@ -318,7 +318,7 @@ class MessageModal extends HTMLElement {
                 <div class="modal-body">
                     <div class="message">
                         <div class="message-time" id="modalTime"></div>
-                        <text-analyzer id="textAnalyzer"></text-analyzer>
+                        <message-analyzer id="messageAnalyzer"></message-analyzer>
                     </div>
                 </div>
                 <div class="resize-handle resize-handle-e" data-direction="e"></div>
@@ -334,9 +334,9 @@ class MessageModal extends HTMLElement {
         this.shadowRoot.querySelector('#closeBtn').addEventListener('click', () => this.hide());
         // 绑定应用按钮点击事件
         this.shadowRoot.querySelector('#applyBtn').addEventListener('click', () => {
-            const textAnalyzer = this.shadowRoot.querySelector('#textAnalyzer');
-            if (textAnalyzer && typeof textAnalyzer.useSelectedText === 'function') {
-                textAnalyzer.useSelectedText();
+            const messageAnalyzer = this.shadowRoot.querySelector('#messageAnalyzer');
+            if (messageAnalyzer && typeof messageAnalyzer.useSelectedText === 'function') {
+                messageAnalyzer.useSelectedText();
             }
         });
 
@@ -374,11 +374,11 @@ class MessageModal extends HTMLElement {
             }
         }
 
-        // 控制文本分析器的自动选择功能
-        const textAnalyzer = this.shadowRoot.querySelector('#textAnalyzer');
-        if (textAnalyzer) {
-            if (textAnalyzer.setAutoSelectEnabled && typeof textAnalyzer.setAutoSelectEnabled === 'function') {
-                textAnalyzer.setAutoSelectEnabled(this.autoSelectEnabled);
+        // 控制消息分析器的自动选择功能
+        const messageAnalyzer = this.shadowRoot.querySelector('#messageAnalyzer');
+        if (messageAnalyzer) {
+            if (messageAnalyzer.setAutoSelectEnabled && typeof messageAnalyzer.setAutoSelectEnabled === 'function') {
+                messageAnalyzer.setAutoSelectEnabled(this.autoSelectEnabled);
             }
         }
     }
@@ -387,16 +387,16 @@ class MessageModal extends HTMLElement {
      * 更新历史路径显示
      */
     updateHistoryPath() {
-        const textAnalyzer = this.shadowRoot.querySelector('#textAnalyzer');
+        const messageAnalyzer = this.shadowRoot.querySelector('#messageAnalyzer');
         const historyPath = this.shadowRoot.querySelector('#historyPath');
 
-        if (!textAnalyzer || !textAnalyzer.textHistory) {
+        if (!messageAnalyzer || !messageAnalyzer.textHistory) {
             historyPath.innerHTML = '';
             return;
         }
 
-        const historyInfo = textAnalyzer.textHistory.getHistoryInfo();
-        const currentIndex = textAnalyzer.textHistory.currentIndex;
+        const historyInfo = messageAnalyzer.textHistory.getHistoryInfo();
+        const currentIndex = messageAnalyzer.textHistory.currentIndex;
 
         // 构建路径HTML
         let pathHtml = '';
@@ -436,17 +436,17 @@ class MessageModal extends HTMLElement {
      * @param {number} index - 历史索引
      */
     goToHistory(index) {
-        const textAnalyzer = this.shadowRoot.querySelector('#textAnalyzer');
-        if (!textAnalyzer || !textAnalyzer.textHistory) return;
+        const messageAnalyzer = this.shadowRoot.querySelector('#messageAnalyzer');
+        if (!messageAnalyzer || !messageAnalyzer.textHistory) return;
 
         // 跳转到指定历史
-        const text = textAnalyzer.textHistory.goTo(index);
+        const text = messageAnalyzer.textHistory.goTo(index);
 
     
         // 强制更新文本分析器的显示
-        const contentContainer = textAnalyzer.shadowRoot.querySelector('#contentContainer');
+        const contentContainer = messageAnalyzer.shadowRoot.querySelector('#contentContainer');
         if (contentContainer) {
-            contentContainer.innerHTML = `<pre>${textAnalyzer.escapeHtml(text)}</pre>`;
+            contentContainer.innerHTML = `<pre>${messageAnalyzer.escapeHtml(text)}</pre>`;
         }
 
         // 更新历史路径显示
@@ -553,9 +553,9 @@ class MessageModal extends HTMLElement {
         }
 
         // 更新内容
-        const textAnalyzer = this.shadowRoot.querySelector('#textAnalyzer');
-        if (textAnalyzer) {
-            textAnalyzer.setData({
+        const messageAnalyzer = this.shadowRoot.querySelector('#messageAnalyzer');
+        if (messageAnalyzer) {
+            messageAnalyzer.setData({
                 type: this.messageData.type,
                 content: this.messageData.content.data
             });
@@ -607,10 +607,10 @@ class MessageModal extends HTMLElement {
      * 初始化选择监听
      */
     initSelectionListener() {
-        const textAnalyzer = this.shadowRoot.querySelector('#textAnalyzer');
+        const messageAnalyzer = this.shadowRoot.querySelector('#messageAnalyzer');
 
         // 监听文本分析器的选择变化事件
-        textAnalyzer.addEventListener('selection-changed', (e) => {
+        messageAnalyzer.addEventListener('selection-changed', (e) => {
             // 根据是否有有效的选择位置来控制按钮状态
             const applyBtn = this.shadowRoot.querySelector('#applyBtn');
             if (applyBtn) {
@@ -623,7 +623,7 @@ class MessageModal extends HTMLElement {
         });
 
         // 监听内容替换事件
-        textAnalyzer.addEventListener('content-replaced', (e) => {
+        messageAnalyzer.addEventListener('content-replaced', (e) => {
             // 内容替换后禁用按钮
             setTimeout(() => {
                 const applyBtn = this.shadowRoot.querySelector('#applyBtn');

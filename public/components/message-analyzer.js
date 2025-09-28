@@ -1,7 +1,9 @@
 // 导入文本历史存储工具类
 import TextHistoryStorage from '../utils/text-history-storage.js';
+// 导入字符串边界查找工具类
+import StringBoundaryFinder from '../utils/string-boundary-finder.js';
 
-class TextAnalyzer extends HTMLElement {
+class MessageAnalyzer extends HTMLElement {
     constructor() {
         super();
         this.attachShadow({ mode: 'open' });
@@ -409,4 +411,4 @@ class TextAnalyzer extends HTMLElement {
     }
 }
 
-customElements.define('text-analyzer', TextAnalyzer);
+customElements.define('message-analyzer', MessageAnalyzer);

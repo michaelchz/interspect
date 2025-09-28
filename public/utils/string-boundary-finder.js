@@ -91,9 +91,5 @@ class StringBoundaryFinder {
     }
 }
 
-// 导出供其他模块使用
-if (typeof module !== 'undefined' && module.exports) {
-    module.exports = StringBoundaryFinder;
-} else if (typeof window !== 'undefined') {
-    window.StringBoundaryFinder = StringBoundaryFinder;
-}
+// 导出类供其他模块使用
+export default StringBoundaryFinder;
