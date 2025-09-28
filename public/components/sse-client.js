@@ -35,10 +35,33 @@ class SSEClient extends HTMLElement {
                     border-bottom: 1px solid var(--border-color);
                 }
 
+                .status-text {
+                    font-size: 12px;
+                    color: #666;
+                    padding: 4px 8px;
+                    background-color: #f5f5f5;
+                    border-radius: 4px;
+                    max-width: 200px;
+                    overflow: hidden;
+                    text-overflow: ellipsis;
+                    white-space: nowrap;
+                    transition: all 0.3s ease;
+                }
+
+                .status-text.system-message {
+                    color: #2196F3;
+                    background-color: #e3f2fd;
+                }
+
+                .status-text.error {
+                    color: #f44336;
+                    background-color: #ffebee;
+                }
+
                 .header-right {
                     display: flex;
                     align-items: center;
-                    gap: 10px;
+                    gap: 15px;
                 }
 
                 .heartbeat-indicator {
@@ -90,42 +113,19 @@ class SSEClient extends HTMLElement {
                     color: white;
                 }
 
-                .control-buttons {
-                    margin-bottom: 15px;
-                    display: flex;
-                    gap: 10px;
-                    justify-content: space-between;
-                }
 
-                .btn-group-left {
-                    display: flex;
-                    gap: 10px;
-                }
-
-                .btn {
-                    padding: 8px 16px;
+                .btn-clear {
+                    padding: 6px 12px;
                     border: none;
                     border-radius: 4px;
                     cursor: pointer;
-                    font-size: 14px;
+                    font-size: 12px;
+                    background-color: #666;
+                    color: white;
                     transition: background-color 0.2s;
                 }
 
-                .btn-primary {
-                    background-color: var(--primary-color);
-                    color: white;
-                }
-
-                .btn-primary:hover {
-                    background-color: #45a049;
-                }
-
-                .btn-secondary {
-                    background-color: #666;
-                    color: white;
-                }
-
-                .btn-secondary:hover {
+                .btn-clear:hover {
                     background-color: #555;
                 }
 
@@ -139,17 +139,11 @@ class SSEClient extends HTMLElement {
                 <div class="sse-header">
                     <div class="sse-title">SSE 客户端</div>
                     <div class="header-right">
+                        <button id="clear-btn" class="btn-clear">清空消息</button>
+                        <div id="status-text" class="status-text" title="状态信息"></div>
                         <div id="heartbeat-indicator" class="heartbeat-indicator"></div>
                         <div id="connection-status" class="connection-status disconnected">未连接</div>
                     </div>
-                </div>
-
-                <div class="control-buttons">
-                    <div class="btn-group-left">
-                        <button id="connect-btn" class="btn btn-primary">连接</button>
-                        <button id="disconnect-btn" class="btn btn-secondary" disabled>断开</button>
-                    </div>
-                    <button id="clear-btn" class="btn btn-secondary">清空消息</button>
                 </div>
 
                 <div id="messages-container-wrapper">
@@ -161,8 +155,6 @@ class SSEClient extends HTMLElement {
         this.shadowRoot.appendChild(template.content.cloneNode(true));
 
         // 绑定事件
-        this.shadowRoot.querySelector('#connect-btn').addEventListener('click', () => this.connect());
-        this.shadowRoot.querySelector('#disconnect-btn').addEventListener('click', () => this.disconnect());
         this.shadowRoot.querySelector('#clear-btn').addEventListener('click', () => this.clearMessages());
 
   
@@ -194,25 +186,21 @@ class SSEClient extends HTMLElement {
 
         // 延迟一点时间确保组件完全加载后自动连接
         setTimeout(() => {
-            this.connect();
+            if (this.connection) {
+                this.connection.connect();
+            }
         }, 100);
     }
 
-    connect() {
-        if (this.connection) {
-            this.connection.connect();
-        }
-    }
-
-    disconnect() {
-        if (this.connection) {
-            this.connection.disconnect();
-        }
-    }
-
     addMessage(type, content) {
-        const messageList = this.getMessageList();
-        messageList.addMessage(type, content);
+        // 如果是系统消息或错误消息，只更新到状态文本框，不添加到消息列表
+        if (type === '系统' || type === '错误') {
+            this.updateStatusText(content, type === '错误');
+        } else {
+            // 其他消息正常添加到消息列表
+            const messageList = this.getMessageList();
+            messageList.addMessage(type, content);
+        }
     }
 
     /**
@@ -235,6 +223,7 @@ class SSEClient extends HTMLElement {
                     this.startCountdown(info.delay, info.attempt);
                     const seconds = Math.ceil(info.delay / 1000);
                     text = `重连中(${info.attempt})...${seconds}`;
+                    this.updateStatusText(`正在尝试第${info.attempt}次重连`);
                 } else {
                     text = '重连中...';
                 }
@@ -270,8 +259,6 @@ class SSEClient extends HTMLElement {
     handleConnect() {
         this.stopCountdown();
         this.addMessage('系统', 'SSE 连接已建立');
-        this.shadowRoot.querySelector('#connect-btn').disabled = true;
-        this.shadowRoot.querySelector('#disconnect-btn').disabled = false;
     }
 
     /**
@@ -280,8 +267,6 @@ class SSEClient extends HTMLElement {
     handleDisconnect() {
         this.addMessage('系统', 'SSE 连接已断开');
         this.getMessageList().clearMessages();
-        this.shadowRoot.querySelector('#connect-btn').disabled = false;
-        this.shadowRoot.querySelector('#disconnect-btn').disabled = true;
     }
 
     updateStatus(status, text) {
@@ -316,6 +301,23 @@ class SSEClient extends HTMLElement {
     clearMessages() {
         const messageList = this.getMessageList();
         messageList.clearMessages();
+    }
+
+    /**
+     * 更新状态文本
+     */
+    updateStatusText(text, isError = false) {
+        const statusTextEl = this.shadowRoot.querySelector('#status-text');
+        if (statusTextEl) {
+            statusTextEl.textContent = typeof text === 'string' ? text : text.message || text;
+            statusTextEl.className = 'status-text';
+
+            if (isError) {
+                statusTextEl.classList.add('error');
+            } else {
+                statusTextEl.classList.add('system-message');
+            }
+        }
     }
 
     /**
