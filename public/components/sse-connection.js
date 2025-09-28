@@ -4,7 +4,7 @@
  */
 class SSEConnection {
   constructor(options = {}) {
-    this.endpoint = options.endpoint || '/inspect/sse';
+    this.endpoint = options.endpoint || '/interspect/sse';
     this.heartbeatInterval = options.heartbeatInterval || 15000; // 15秒
     this.heartbeatTimeout = options.heartbeatTimeout || 20000; // 20秒
 

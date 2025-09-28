@@ -2,20 +2,20 @@ import { Controller, Get, Res, Req, Logger } from "@nestjs/common";
 import type { Request, Response } from "express";
 import { SseService } from "../services/sse.service";
 
-@Controller("inspect")
+@Controller("interspect")
 export class InspectController {
   private readonly logger = new Logger(InspectController.name);
 
   constructor(private readonly sseService: SseService) {}
 
-  @Get()
+  @Get("status")
   getStatus() {
     return {
       status: "ok",
       message: "Inspect module is running",
       timestamp: new Date().toISOString(),
       endpoints: {
-        sse: "/inspect/sse",
+        sse: "/interspect/sse",
       },
     };
   }
