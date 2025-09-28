@@ -5,7 +5,6 @@ import { InspectModule } from "../inspect-module/inspect.module";
 import { MetricsService } from "./services/metrics.service"; // New import path
 import { MetricsController } from "./controllers/metrics.controller"; // New import
 import { ProxyController } from "./controllers/proxy.controller";
-import { WebSocketModule } from "../websocket-module/websocket.module";
 import * as http from "http";
 import * as https from "https";
 import { AgentMetricsService } from "./services/agent-metrics.service";
@@ -25,7 +24,7 @@ const staticHttpsAgent = new https.Agent({
 });
 
 @Module({
-  imports: [AppConfigModule, WebSocketModule, InspectModule],
+  imports: [AppConfigModule, InspectModule],
   controllers: [MetricsController, ProxyController],
   providers: [
     StaticService,

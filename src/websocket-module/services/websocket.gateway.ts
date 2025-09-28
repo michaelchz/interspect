@@ -4,6 +4,7 @@ import { Server as WSServer } from "ws";
 import { AppConfigService } from "../../app-config-module/services/app-config.service";
 import { IncomingMessage } from "http";
 import { InspectService } from "../../inspect-module/services/inspect.service";
+import { MetricsService } from "../../proxy-module/services/metrics.service";
 import * as http from "http";
 
 @Injectable()
@@ -17,6 +18,7 @@ export class WebSocketGateway implements OnModuleDestroy {
   constructor(
     private readonly appConfigService: AppConfigService,
     private readonly inspectService: InspectService,
+    private readonly metricsService: MetricsService,
   ) {}
 
   /**
@@ -44,13 +46,13 @@ export class WebSocketGateway implements OnModuleDestroy {
     this.logger.log(`新的 WebSocket 连接: ${request.socket.remoteAddress}`);
 
     // 获取客户端请求的路径
-    const requestPath = request.url || '/';
+    const requestPath = request.url || "/";
     this.logger.log(`客户端请求路径: ${requestPath}`);
 
     // 构建完整的 WebSocket URL，包含原始请求路径
     const targetUrl = new URL(
       requestPath,
-      this.appConfigService.targetServerUrl.replace(/^http/, "ws")
+      this.appConfigService.targetServerUrl.replace(/^http/, "ws"),
     ).href;
 
     this.logger.log(`连接到目标服务器: ${targetUrl}`);
@@ -63,9 +65,15 @@ export class WebSocketGateway implements OnModuleDestroy {
       this.activeConnections.add(client);
       this.activeServerSockets.add(serverSocket);
 
+      // 记录连接统计
+      this.metricsService.incrementClientConnections();
+      this.metricsService.incrementServerConnections();
+
       // 代理：客户端 → 服务器
       client.on("message", (data, isBinary) => {
         if (serverSocket.readyState === WSWebSocket.OPEN) {
+          const startTime = Date.now();
+
           // 使用 InspectService 记录
           const messageData = isBinary
             ? "[binary data]"
@@ -85,6 +93,10 @@ export class WebSocketGateway implements OnModuleDestroy {
             timestamp: new Date().toISOString(),
           });
 
+          // 记录消息统计
+          this.metricsService.incrementClientMessagesReceived();
+          this.metricsService.incrementServerMessagesSent();
+
           // 根据原始消息类型发送
           if (!isBinary && data instanceof Buffer) {
             // 原始是文本帧，但 ws 给了 Buffer，需要转回字符串
@@ -93,12 +105,18 @@ export class WebSocketGateway implements OnModuleDestroy {
             // 保持二进制数据
             serverSocket.send(data, { binary: isBinary });
           }
+
+          // 记录处理时间
+          const processingTime = Date.now() - startTime;
+          this.metricsService.addMessageProcessingTime(processingTime);
         }
       });
 
       // 代理：服务器 → 客户端
       serverSocket.on("message", (data, isBinary) => {
         if (client.readyState === WSWebSocket.OPEN) {
+          const startTime = Date.now();
+
           // 使用 InspectService 记录
           const messageData = isBinary
             ? "[binary data]"
@@ -118,6 +136,10 @@ export class WebSocketGateway implements OnModuleDestroy {
             timestamp: new Date().toISOString(),
           });
 
+          // 记录消息统计
+          this.metricsService.incrementServerMessagesReceived();
+          this.metricsService.incrementClientMessagesSent();
+
           // 根据原始消息类型发送
           if (!isBinary && data instanceof Buffer) {
             // 原始是文本帧，但 ws 给了 Buffer，需要转回字符串
@@ -126,12 +148,17 @@ export class WebSocketGateway implements OnModuleDestroy {
             // 保持二进制数据
             client.send(data, { binary: isBinary });
           }
+
+          // 记录处理时间
+          const processingTime = Date.now() - startTime;
+          this.metricsService.addMessageProcessingTime(processingTime);
         }
       });
 
       // 处理连接关闭
       client.on("close", () => {
         this.activeConnections.delete(client);
+        this.metricsService.decrementClientConnections();
         if (serverSocket.readyState === WSWebSocket.OPEN) {
           serverSocket.close();
         }
@@ -139,6 +166,7 @@ export class WebSocketGateway implements OnModuleDestroy {
 
       serverSocket.on("close", () => {
         this.activeServerSockets.delete(serverSocket);
+        this.metricsService.decrementServerConnections();
         if (client.readyState === WSWebSocket.OPEN) {
           client.close();
         }
@@ -148,12 +176,16 @@ export class WebSocketGateway implements OnModuleDestroy {
       client.on("error", (error) => {
         this.logger.error("客户端错误:", error);
         this.activeConnections.delete(client);
+        this.metricsService.decrementClientConnections();
+        this.metricsService.incrementClientConnectionError();
         client.close();
       });
 
       serverSocket.on("error", (error) => {
         this.logger.error("服务器错误:", error);
         this.activeServerSockets.delete(serverSocket);
+        this.metricsService.decrementServerConnections();
+        this.metricsService.incrementServerConnectionError();
         serverSocket.close();
       });
     } catch (error) {
@@ -185,6 +217,7 @@ export class WebSocketGateway implements OnModuleDestroy {
       }
     }
     this.activeConnections.clear();
+    this.metricsService["currentClientConnections"] = 0;
 
     // 关闭所有服务器连接
     for (const serverSocket of this.activeServerSockets) {
@@ -197,6 +230,7 @@ export class WebSocketGateway implements OnModuleDestroy {
       }
     }
     this.activeServerSockets.clear();
+    this.metricsService["currentServerConnections"] = 0;
 
     // 关闭WebSocket服务器
     if (this.server) {

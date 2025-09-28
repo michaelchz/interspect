@@ -17,6 +17,21 @@ export class MetricsService {
   private cacheForceRefreshCount: number = 0;
   private cacheMissCount: number = 0;
 
+  // WebSocket Service Metrics
+  private currentClientConnections: number = 0;
+  private currentServerConnections: number = 0;
+  private clientMessagesSent: number = 0;
+  private clientMessagesReceived: number = 0;
+  private serverMessagesSent: number = 0;
+  private serverMessagesReceived: number = 0;
+  private reconnectionSuccesses: number = 0;
+  private reconnectionFailures: number = 0;
+  private clientConnectionErrors: number = 0;
+  private serverConnectionErrors: number = 0;
+  private messageProcessingErrors: number = 0;
+  private totalMessageProcessingTime: number = 0;
+  private processedMessageCount: number = 0;
+
   // Uptime
   private readonly startTime = new Date();
 
@@ -57,7 +72,76 @@ export class MetricsService {
     this.cacheMissCount++;
   }
 
+  // --- WebSocket Service ---
+  incrementClientConnections(): void {
+    this.currentClientConnections++;
+  }
+
+  decrementClientConnections(): void {
+    this.currentClientConnections = Math.max(
+      0,
+      this.currentClientConnections - 1,
+    );
+  }
+
+  incrementServerConnections(): void {
+    this.currentServerConnections++;
+  }
+
+  decrementServerConnections(): void {
+    this.currentServerConnections = Math.max(
+      0,
+      this.currentServerConnections - 1,
+    );
+  }
+
+  incrementClientMessagesSent(): void {
+    this.clientMessagesSent++;
+  }
+
+  incrementClientMessagesReceived(): void {
+    this.clientMessagesReceived++;
+  }
+
+  incrementServerMessagesSent(): void {
+    this.serverMessagesSent++;
+  }
+
+  incrementServerMessagesReceived(): void {
+    this.serverMessagesReceived++;
+  }
+
+  incrementReconnectionSuccess(): void {
+    this.reconnectionSuccesses++;
+  }
+
+  incrementReconnectionFailure(): void {
+    this.reconnectionFailures++;
+  }
+
+  incrementClientConnectionError(): void {
+    this.clientConnectionErrors++;
+  }
+
+  incrementServerConnectionError(): void {
+    this.serverConnectionErrors++;
+  }
+
+  incrementMessageProcessingError(): void {
+    this.messageProcessingErrors++;
+  }
+
+  addMessageProcessingTime(timeMs: number): void {
+    this.totalMessageProcessingTime += timeMs;
+    this.processedMessageCount++;
+  }
+
   getMetrics() {
+    const averageMessageProcessingTime =
+      this.processedMessageCount > 0
+        ? this.totalMessageProcessingTime / this.processedMessageCount
+        : 0;
+
     return {
       static: {
         requestCount: this.staticRequestCount,
@@ -75,6 +159,36 @@ export class MetricsService {
         staleCount: this.cacheStaleCount,
         forceRefreshCount: this.cacheForceRefreshCount,
         missCount: this.cacheMissCount,
+      },
+      webSocket: {
+        connections: {
+          current: {
+            clients: this.currentClientConnections,
+            servers: this.currentServerConnections,
+          },
+        },
+        messages: {
+          clients: {
+            sent: this.clientMessagesSent,
+            received: this.clientMessagesReceived,
+          },
+          servers: {
+            sent: this.serverMessagesSent,
+            received: this.serverMessagesReceived,
+          },
+        },
+        reconnections: {
+          successes: this.reconnectionSuccesses,
+          failures: this.reconnectionFailures,
+        },
+        errors: {
+          clientConnections: this.clientConnectionErrors,
+          serverConnections: this.serverConnectionErrors,
+          messages: this.messageProcessingErrors,
+        },
+        performance: {
+          averageMessageProcessingTime,
+        },
       },
     };
   }
