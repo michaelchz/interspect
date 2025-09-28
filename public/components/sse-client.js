@@ -5,6 +5,8 @@ class SSEClient extends HTMLElement {
         this.connection = null;
         this.countdownInterval = null;
         this.reconnectEndTime = null;
+        this.messageCount = 0;
+        this.firstVisibleIndex = 0;
 
         const template = document.createElement('template');
         template.innerHTML = `
@@ -157,6 +159,16 @@ class SSEClient extends HTMLElement {
         // 绑定事件
         this.shadowRoot.querySelector('#clear-btn').addEventListener('click', () => this.clearMessages());
 
+        // 监听消息列表的数量变化
+        const messageList = this.shadowRoot.querySelector('#message-list');
+        if (messageList) {
+            messageList.addEventListener('message-count-changed', (e) => {
+                this.messageCount = e.detail.total;
+                this.firstVisibleIndex = e.detail.firstVisible;
+                this.updateClearButtonText();
+            });
+        }
+
   
         // 获取默认端点
         this.endpoint = this.getAttribute('endpoint') || '/inspect/sse';
@@ -301,6 +313,18 @@ class SSEClient extends HTMLElement {
     clearMessages() {
         const messageList = this.getMessageList();
         messageList.clearMessages();
+    }
+
+    /**
+     * 更新清空按钮的文字
+     */
+    updateClearButtonText() {
+        const clearBtn = this.shadowRoot.querySelector('#clear-btn');
+        if (clearBtn && this.messageCount > 0) {
+            clearBtn.textContent = `清空消息 (${this.firstVisibleIndex}/${this.messageCount})`;
+        } else {
+            clearBtn.textContent = '清空消息';
+        }
     }
 
     /**

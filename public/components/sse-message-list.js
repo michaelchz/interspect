@@ -51,6 +51,16 @@ class SSEMessageList extends HTMLElement {
         this.addEventListener('message-activated', (e) => {
             this.switchActiveMessage(e.detail.messageElement);
         });
+
+        // 监听滚动事件
+        const container = this.shadowRoot.querySelector('#messages-container');
+        container.addEventListener('scroll', () => {
+            // 使用防抖优化，避免频繁触发
+            clearTimeout(this.scrollTimeout);
+            this.scrollTimeout = setTimeout(() => {
+                this.updateMessageCount();
+            }, 100);
+        });
     }
 
     /**
@@ -73,7 +83,7 @@ class SSEMessageList extends HTMLElement {
 
         // 限制消息数量
         const messages = container.querySelectorAll('sse-message');
-        if (messages.length >= 50) {
+        if (messages.length >= 200) {
             const removedMessage = messages[0];
             // 如果移除的是激活的消息，重置激活状态
             if (this.activeMessageRef === removedMessage) {
@@ -85,6 +95,9 @@ class SSEMessageList extends HTMLElement {
 
         container.appendChild(messageEl);
         container.scrollTop = container.scrollHeight;
+
+        // 触发消息数量更新事件
+        this.updateMessageCount();
     }
 
     /**
@@ -99,6 +112,57 @@ class SSEMessageList extends HTMLElement {
             this.activeMessageRef.setActive(false);
             this.activeMessageRef = null;
         }
+
+        // 触发消息数量更新事件
+        this.updateMessageCount();
+    }
+
+    /**
+     * 更新消息数量
+     */
+    updateMessageCount() {
+        const container = this.shadowRoot.querySelector('#messages-container');
+        const messages = container.querySelectorAll('sse-message');
+        const firstVisibleIndex = this.getFirstVisibleMessageIndex();
+
+        // 触发自定义事件通知消息数量变化
+        this.dispatchEvent(new CustomEvent('message-count-changed', {
+            bubbles: true,
+            composed: true,
+            detail: {
+                total: messages.length,
+                firstVisible: firstVisibleIndex,
+                hasMessages: messages.length > 0
+            }
+        }));
+    }
+
+    /**
+     * 获取当前窗口中第一条可见消息的序号
+     * @returns {number} 第一条可见消息的序号（从1开始）
+     */
+    getFirstVisibleMessageIndex() {
+        const container = this.shadowRoot.querySelector('#messages-container');
+        const messages = container.querySelectorAll('sse-message');
+
+        if (messages.length === 0) return 0;
+
+        // 计算滚动位置
+        const containerTop = container.getBoundingClientRect().top;
+
+        // 找到第一个完全或部分可见的消息
+        for (let i = 0; i < messages.length; i++) {
+            const messageTop = messages[i].getBoundingClientRect().top;
+            const messageBottom = messages[i].getBoundingClientRect().bottom;
+            const containerBottom = container.getBoundingClientRect().bottom;
+
+            // 如果消息在可视区域内
+            if (messageBottom >= containerTop && messageTop <= containerBottom) {
+                return i + 1; // 从1开始计数
+            }
+        }
+
+        return messages.length; // 如果都不在可视区域内，返回最后一个
     }
 
     /**
