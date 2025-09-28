@@ -2,9 +2,9 @@ class SSEClient extends HTMLElement {
     constructor() {
         super();
         this.attachShadow({ mode: 'open' });
-        this.eventSource = null;
-        this.lastHeartbeatTime = 0;
-        this.heartbeatCheckInterval = null;
+        this.connection = null;
+        this.countdownInterval = null;
+        this.reconnectEndTime = null;
 
         const template = document.createElement('template');
         template.innerHTML = `
@@ -178,65 +178,35 @@ class SSEClient extends HTMLElement {
         return this.shadowRoot.querySelector('#message-list');
     }
 
+    connectedCallback() {
+        // 创建 SSE 连接实例
+        this.connection = new SSEConnection({
+            endpoint: this.endpoint,
+            autoReconnect: true,
+            maxReconnectAttempts: 5,
+            onStatusChange: (status, info) => this.handleStatusChange(status, info),
+            onMessage: (message) => this.handleMessage(message),
+            onHeartbeat: (data) => this.handleHeartbeat(data),
+            onError: (error) => this.handleError(error),
+            onConnect: () => this.handleConnect(),
+            onDisconnect: () => this.handleDisconnect()
+        });
+
+        // 延迟一点时间确保组件完全加载后自动连接
+        setTimeout(() => {
+            this.connect();
+        }, 100);
+    }
+
     connect() {
-        if (this.eventSource) {
-            this.addMessage('系统', '已经连接，请先断开');
-            return;
-        }
-
-        try {
-            this.eventSource = new EventSource(this.endpoint);
-            this.updateStatus('connected', '连接中...');
-
-            this.eventSource.onopen = () => {
-                this.updateStatus('connected', '已连接');
-                this.addMessage('系统', 'SSE 连接已建立');
-                this.shadowRoot.querySelector('#connect-btn').disabled = true;
-                this.shadowRoot.querySelector('#disconnect-btn').disabled = false;
-
-                // 开始心跳检测
-                this.startHeartbeatCheck();
-            };
-
-            this.eventSource.onmessage = (event) => {
-                try {
-                    const data = JSON.parse(event.data);
-                    // 处理心跳消息
-                    if (data.type === 'heartbeat') {
-                        this.lastHeartbeatTime = Date.now();
-                        this.triggerHeartbeat();
-                        return;
-                    }
-                    this.addMessage('服务器', data);
-                } catch (e) {
-                    this.addMessage('服务器', event.data);
-                }
-            };
-
-            this.eventSource.onerror = (error) => {
-                this.addMessage('错误', `连接错误 (readyState: ${this.eventSource.readyState})`);
-                this.updateStatus('disconnected', '连接错误');
-                this.disconnect();
-            };
-
-        } catch (error) {
-            this.addMessage('错误', `连接失败: ${error.message}`);
-            this.updateStatus('disconnected', '连接失败');
+        if (this.connection) {
+            this.connection.connect();
         }
     }
 
     disconnect() {
-        if (this.eventSource) {
-            this.eventSource.close();
-            this.eventSource = null;
-            this.updateStatus('disconnected', '已断开');
-            this.addMessage('系统', 'SSE 连接已断开');
-            this.getMessageList().clearMessages();
-            this.shadowRoot.querySelector('#connect-btn').disabled = false;
-            this.shadowRoot.querySelector('#disconnect-btn').disabled = true;
-
-            // 停止心跳检测
-            this.stopHeartbeatCheck();
+        if (this.connection) {
+            this.connection.disconnect();
         }
     }
 
@@ -245,7 +215,75 @@ class SSEClient extends HTMLElement {
         messageList.addMessage(type, content);
     }
 
-  
+    /**
+     * 处理连接状态变化
+     */
+    handleStatusChange(status, info = null) {
+        let text = '';
+        switch (status) {
+            case 'connecting':
+                text = '连接中...';
+                break;
+            case 'connected':
+                text = '已连接';
+                break;
+            case 'disconnected':
+                text = '未连接';
+                break;
+            case 'reconnecting':
+                if (info && info.delay) {
+                    this.startCountdown(info.delay, info.attempt);
+                    const seconds = Math.ceil(info.delay / 1000);
+                    text = `重连中(${info.attempt})...${seconds}`;
+                } else {
+                    text = '重连中...';
+                }
+                break;
+        }
+        this.updateStatus(status === 'connected' ? 'connected' : 'disconnected', text);
+    }
+
+    /**
+     * 处理接收到消息
+     */
+    handleMessage(message) {
+        this.addMessage('服务器', message);
+    }
+
+    /**
+     * 处理心跳消息
+     */
+    handleHeartbeat(data) {
+        this.triggerHeartbeat();
+    }
+
+    /**
+     * 处理连接错误
+     */
+    handleError(error) {
+        this.addMessage('错误', `连接错误: ${error.message}`);
+    }
+
+    /**
+     * 处理连接建立
+     */
+    handleConnect() {
+        this.stopCountdown();
+        this.addMessage('系统', 'SSE 连接已建立');
+        this.shadowRoot.querySelector('#connect-btn').disabled = true;
+        this.shadowRoot.querySelector('#disconnect-btn').disabled = false;
+    }
+
+    /**
+     * 处理连接断开
+     */
+    handleDisconnect() {
+        this.addMessage('系统', 'SSE 连接已断开');
+        this.getMessageList().clearMessages();
+        this.shadowRoot.querySelector('#connect-btn').disabled = false;
+        this.shadowRoot.querySelector('#disconnect-btn').disabled = true;
+    }
+
     updateStatus(status, text) {
         const statusEl = this.shadowRoot.querySelector('#connection-status');
         const indicator = this.shadowRoot.querySelector('#heartbeat-indicator');
@@ -274,42 +312,52 @@ class SSEClient extends HTMLElement {
         }, 600);
     }
 
-    startHeartbeatCheck() {
-        // 每 15 秒检查一次心跳（服务器每 10 秒发一次）
-        this.heartbeatCheckInterval = setInterval(() => {
-            const now = Date.now();
-
-            // 检查 EventSource 状态
-            if (this.eventSource && this.eventSource.readyState === EventSource.CLOSED) {
-                this.addMessage('错误', 'EventSource 已关闭');
-                this.updateStatus('disconnected', '连接已关闭');
-                this.disconnect();
-                return;
-            }
-
-            // 如果超过 20 秒没有收到心跳，认为连接已断开
-            if (now - this.lastHeartbeatTime > 20000) {
-                this.addMessage('错误', '心跳超时，连接可能已断开');
-                this.updateStatus('disconnected', '连接超时');
-                this.disconnect();
-            }
-        }, 15000);
-    }
-
-    stopHeartbeatCheck() {
-        if (this.heartbeatCheckInterval) {
-            clearInterval(this.heartbeatCheckInterval);
-            this.heartbeatCheckInterval = null;
-        }
-    }
-
+  
     clearMessages() {
         const messageList = this.getMessageList();
         messageList.clearMessages();
     }
 
+    /**
+     * 启动倒计时
+     */
+    startCountdown(delay, attempt) {
+        this.stopCountdown();
+        this.reconnectEndTime = Date.now() + delay;
+
+        this.countdownInterval = setInterval(() => {
+            const remaining = Math.max(0, Math.ceil((this.reconnectEndTime - Date.now()) / 1000));
+            const text = `重连中(${attempt})...${remaining}`;
+
+            const statusEl = this.shadowRoot.querySelector('#connection-status');
+            if (statusEl) {
+                statusEl.textContent = text;
+            }
+
+            // 倒计时结束
+            if (remaining === 0) {
+                this.stopCountdown();
+            }
+        }, 200);
+    }
+
+    /**
+     * 停止倒计时
+     */
+    stopCountdown() {
+        if (this.countdownInterval) {
+            clearInterval(this.countdownInterval);
+            this.countdownInterval = null;
+        }
+        this.reconnectEndTime = null;
+    }
+
     disconnectedCallback() {
-        this.disconnect();
+        this.stopCountdown();
+        if (this.connection) {
+            this.connection.destroy();
+            this.connection = null;
+        }
     }
 
 }
