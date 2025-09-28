@@ -10,6 +10,7 @@ class MessageModal extends HTMLElement {
         this.startY = 0;
         this.messageData = null;
         this.autoSelectEnabled = true;
+        this.handleKeyDown = this.handleKeyDown.bind(this);
 
         const template = document.createElement('template');
         template.innerHTML = `
@@ -575,6 +576,9 @@ class MessageModal extends HTMLElement {
 
         this.setAttribute('visible', '');
         document.body.style.overflow = 'hidden';
+
+        // 添加 ESC 键监听
+        document.addEventListener('keydown', this.handleKeyDown);
     }
 
     /**
@@ -583,6 +587,20 @@ class MessageModal extends HTMLElement {
     hide() {
         this.removeAttribute('visible');
         document.body.style.overflow = '';
+
+        // 移除 ESC 键监听
+        document.removeEventListener('keydown', this.handleKeyDown);
+    }
+
+    /**
+     * 处理键盘事件
+     * @param {KeyboardEvent} e 键盘事件
+     */
+    handleKeyDown(e) {
+        // 检查是否按下了 ESC 键 (keyCode 27 或 key 'Escape')
+        if (e.key === 'Escape' || e.keyCode === 27) {
+            this.hide();
+        }
     }
 
     /**

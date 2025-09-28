@@ -62,7 +62,7 @@ export class InspectController {
         );
         this.sseService.removeClient(clientId);
       }
-    }, 10000); // 10 秒
+    }, 7000); // 7 秒
 
     // 将心跳定时器存储到 SSE 服务中
     this.sseService.setHeartbeatInterval(clientId, heartbeatInterval);

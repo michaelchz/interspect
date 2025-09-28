@@ -60,6 +60,10 @@ class SSEMessage extends HTMLElement {
 
                 .message-text {
                     font-weight: 500;
+                    /* 确保消息文本换行 */
+                    word-wrap: break-word;
+                    word-break: break-word;
+                    overflow-wrap: break-word;
                 }
 
                 .message-data {
@@ -91,8 +95,7 @@ class SSEMessage extends HTMLElement {
                     content: '👁';
                     position: absolute;
                     right: 8px;
-                    top: 50%;
-                    transform: translateY(-50%);
+                    top: 8px;
                     font-size: 12px;
                     opacity: 0.6;
                 }
@@ -106,7 +109,15 @@ class SSEMessage extends HTMLElement {
         this.shadowRoot.appendChild(template.content.cloneNode(true));
 
         // 添加点击事件
-        this.shadowRoot.querySelector('.message').addEventListener('click', () => {
+        this.shadowRoot.querySelector('.message').addEventListener('click', (e) => {
+            // 检查是否有文本被选中
+            const selection = window.getSelection();
+            if (selection && selection.toString().length > 0) {
+                // 如果有文本选中，不打开弹窗
+                return;
+            }
+
+            // 如果没有文本选中，才显示弹窗
             this.showMessageModal();
         });
     }

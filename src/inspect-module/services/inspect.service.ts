@@ -71,11 +71,26 @@ export class InspectService {
       let decodedBody: Buffer = body;
 
       if (contentEncoding === "gzip") {
-        decodedBody = zlib.gunzipSync(body);
+        try {
+          decodedBody = zlib.gunzipSync(body);
+        } catch (error) {
+          Logger.warn(`解压缩失败 (gzip): ${error instanceof Error ? error.message : '未知错误'}`, 'InspectService');
+          return `[压缩数据解压失败] (${body.length} bytes)`;
+        }
       } else if (contentEncoding === "deflate") {
-        decodedBody = zlib.inflateSync(body);
+        try {
+          decodedBody = zlib.inflateSync(body);
+        } catch (error) {
+          Logger.warn(`解压缩失败 (deflate): ${error instanceof Error ? error.message : '未知错误'}`, 'InspectService');
+          return `[压缩数据解压失败] (${body.length} bytes)`;
+        }
       } else if (contentEncoding === "br") {
-        decodedBody = zlib.brotliDecompressSync(body);
+        try {
+          decodedBody = zlib.brotliDecompressSync(body);
+        } catch (error) {
+          Logger.warn(`解压缩失败 (brotli): ${error instanceof Error ? error.message : '未知错误'}`, 'InspectService');
+          return `[压缩数据解压失败] (${body.length} bytes)`;
+        }
       }
 
       // 步骤 2: 根据 Content-Type 处理
