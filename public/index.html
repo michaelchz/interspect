@@ -293,20 +293,16 @@
                 }
 
                 const websocketCardData = [
-                    { label: '当前客户端连接', value: (wsData.connections?.current?.clients || 0).toLocaleString() },
-                    { label: '当前服务器连接', value: (wsData.connections?.current?.servers || 0).toLocaleString() },
+                    { label: '当前连接（客户端/服务端）', value: `${(wsData.connections?.current?.clients || 0).toLocaleString()}/${(wsData.connections?.current?.servers || 0).toLocaleString()}` },
                     { label: '客户端消息(发送/接收)', value: `${(wsData.messages?.clients?.sent || 0).toLocaleString()}/${(wsData.messages?.clients?.received || 0).toLocaleString()}` },
                     { label: '服务器消息(发送/接收)', value: `${(wsData.messages?.servers?.sent || 0).toLocaleString()}/${(wsData.messages?.servers?.received || 0).toLocaleString()}` },
-                    { label: '重连(成功/失败)', value: `${(wsData.reconnections?.successes || 0).toLocaleString()}/${(wsData.reconnections?.failures || 0).toLocaleString()}` },
                     { label: '平均消息处理时间', value: `${(wsData.performance?.averageMessageProcessingTime || 0).toFixed(2)}ms` }
                 ];
 
                 // Add error counts if they exist
                 if (wsData.errors) {
                     websocketCardData.push(
-                        { label: '客户端连接错误', value: (wsData.errors.clientConnections || 0).toLocaleString() },
-                        { label: '消息处理错误', value: (wsData.errors.messages || 0).toLocaleString() },
-                        { label: '服务器连接错误', value: (wsData.errors.serverConnections || 0).toLocaleString() }
+                        { label: '错误（客户端/服务端/消息）', value: `${(wsData.errors.clientConnections || 0).toLocaleString()}/${(wsData.errors.serverConnections || 0).toLocaleString()}/${(wsData.errors.messages || 0).toLocaleString()}` }
                     );
                 }
 

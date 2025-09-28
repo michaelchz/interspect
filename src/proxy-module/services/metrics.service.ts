@@ -24,8 +24,6 @@ export class MetricsService {
   private clientMessagesReceived: number = 0;
   private serverMessagesSent: number = 0;
   private serverMessagesReceived: number = 0;
-  private reconnectionSuccesses: number = 0;
-  private reconnectionFailures: number = 0;
   private clientConnectionErrors: number = 0;
   private serverConnectionErrors: number = 0;
   private messageProcessingErrors: number = 0;
@@ -111,14 +109,6 @@ export class MetricsService {
     this.serverMessagesReceived++;
   }
 
-  incrementReconnectionSuccess(): void {
-    this.reconnectionSuccesses++;
-  }
-
-  incrementReconnectionFailure(): void {
-    this.reconnectionFailures++;
-  }
-
   incrementClientConnectionError(): void {
     this.clientConnectionErrors++;
   }
@@ -176,10 +166,6 @@ export class MetricsService {
             sent: this.serverMessagesSent,
             received: this.serverMessagesReceived,
           },
-        },
-        reconnections: {
-          successes: this.reconnectionSuccesses,
-          failures: this.reconnectionFailures,
         },
         errors: {
           clientConnections: this.clientConnectionErrors,
