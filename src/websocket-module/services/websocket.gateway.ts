@@ -43,10 +43,16 @@ export class WebSocketGateway implements OnModuleDestroy {
   private handleConnection(client: WSWebSocket, request: IncomingMessage) {
     this.logger.log(`新的 WebSocket 连接: ${request.socket.remoteAddress}`);
 
-    const targetUrl = this.appConfigService.targetServerUrl.replace(
-      /^http/,
-      "ws",
-    );
+    // 获取客户端请求的路径
+    const requestPath = request.url || '/';
+    this.logger.log(`客户端请求路径: ${requestPath}`);
+
+    // 构建完整的 WebSocket URL，包含原始请求路径
+    const targetUrl = new URL(
+      requestPath,
+      this.appConfigService.targetServerUrl.replace(/^http/, "ws")
+    ).href;
+
     this.logger.log(`连接到目标服务器: ${targetUrl}`);
 
     try {
@@ -73,7 +79,7 @@ export class WebSocketGateway implements OnModuleDestroy {
 
           this.inspectService.logWebSocketMessage({
             direction: "client-to-server",
-            data: messageData,
+            body: messageData,
             isBinary,
             serviceName: "WebSocketGateway",
             timestamp: new Date().toISOString(),
@@ -106,7 +112,7 @@ export class WebSocketGateway implements OnModuleDestroy {
 
           this.inspectService.logWebSocketMessage({
             direction: "server-to-client",
-            data: messageData,
+            body: messageData,
             isBinary,
             serviceName: "WebSocketGateway",
             timestamp: new Date().toISOString(),

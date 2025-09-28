@@ -32,7 +32,7 @@ interface ErrorLog {
 
 interface WebSocketLog {
   direction: "client-to-server" | "server-to-client";
-  data: string;
+  body: string;
   isBinary: boolean;
   serviceName: string;
   timestamp: string;
@@ -226,12 +226,12 @@ export class InspectService {
 
     // 控制台日志
     this.logger.debug(
-      `🔌 ${log.serviceName} WebSocket ${direction}: ${dataType} (${log.data.length} bytes)`,
+      `🔌 ${log.serviceName} WebSocket ${direction}: ${dataType} (${log.body.length} bytes)`,
     );
 
     // 记录消息内容（调试级别）
-    if (!log.isBinary && log.data.length > 0) {
-      this.logger.debug(`WebSocket ${direction} 内容: ${log.data}`);
+    if (!log.isBinary && log.body.length > 0) {
+      this.logger.debug(`WebSocket ${direction} 内容: ${log.body}`);
     }
 
     // SSE 广播
@@ -240,7 +240,7 @@ export class InspectService {
         type: "websocket",
         data: log,
         icon: "🔌",
-        message: `${log.serviceName} WebSocket ${direction}: ${dataType} (${log.data.length} bytes)`,
+        message: `${log.serviceName} WebSocket ${direction}: ${dataType} (${log.body.length} bytes)`,
         timestamp: log.timestamp,
       });
     }
