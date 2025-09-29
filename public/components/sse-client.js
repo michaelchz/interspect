@@ -120,6 +120,36 @@ class SSEClient extends HTMLElement {
                     gap: 15px;
                 }
 
+                .auto-scroll-status {
+                    display: flex;
+                    align-items: center;
+                    justify-content: center;
+                    width: 24px;
+                    height: 24px;
+                    border-radius: 50%;
+                    font-size: 14px;
+                    cursor: default;
+                    transition: all 0.3s ease;
+                }
+
+                .auto-scroll-status.active {
+                    background-color: rgba(76, 175, 80, 0.2);
+                    color: #4CAF50;
+                }
+
+                .auto-scroll-status.paused {
+                    background-color: rgba(244, 67, 54, 0.2);
+                    color: #f44336;
+                }
+
+                .auto-scroll-status .status-icon::before {
+                    content: '▶';
+                }
+
+                .auto-scroll-status.paused .status-icon::before {
+                    content: '❚❚';
+                }
+
                 .heartbeat-indicator {
                     width: 8px;
                     height: 8px;
@@ -144,6 +174,12 @@ class SSEClient extends HTMLElement {
                     100% {
                         transform: scale(1);
                     }
+                }
+
+                .title-container {
+                    display: flex;
+                    align-items: center;
+                    gap: 10px;
                 }
 
                 .sse-title {
@@ -193,7 +229,12 @@ class SSEClient extends HTMLElement {
             </style>
             <div class="sse-container">
                 <div class="sse-header">
-                    <div class="sse-title">SSE 客户端</div>
+                    <div class="title-container">
+                        <div class="sse-title">实时消息流</div>
+                        <div class="auto-scroll-status" id="auto-scroll-status" title="自动滚动状态">
+                            <span class="status-icon"></span>
+                        </div>
+                    </div>
                     <div class="filter-controls">
                         <span class="filter-label">过滤:</span>
                         <div class="filter-radio-group">
@@ -243,6 +284,14 @@ class SSEClient extends HTMLElement {
                 this.firstVisibleIndex = e.detail.firstVisible;
                 this.updateClearButtonText(e.detail.visible);
             });
+
+            // 设置自动滚动状态变化回调
+            messageList.onAutoScrollChange = (isActive) => {
+                this.updateAutoScrollStatus(isActive);
+            };
+
+            // 初始化状态显示
+            this.updateAutoScrollStatus(messageList.autoScroll);
         }
 
   
@@ -415,6 +464,17 @@ class SSEClient extends HTMLElement {
             clearBtn.textContent = `清空消息 (${this.firstVisibleIndex}/${visible} | ${this.messageCount})`;
         } else {
             clearBtn.textContent = '清空消息';
+        }
+    }
+
+    /**
+     * 更新自动滚动状态显示
+     * @param {boolean} isActive 是否启用自动滚动
+     */
+    updateAutoScrollStatus(isActive) {
+        const autoScrollStatus = this.shadowRoot.querySelector('#auto-scroll-status');
+        if (autoScrollStatus) {
+            autoScrollStatus.className = `auto-scroll-status ${isActive ? 'active' : 'paused'}`;
         }
     }
 

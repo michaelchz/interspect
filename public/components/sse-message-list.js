@@ -4,6 +4,8 @@ class SSEMessageList extends HTMLElement {
         this.attachShadow({ mode: 'open' });
         this.activeMessageRef = null; // 当前激活的消息引用
         this.currentFilter = 'all'; // 当前过滤条件: all/http/websocket
+        this.autoScroll = true; // 是否自动滚动
+        this.onAutoScrollChange = null; // 自动滚动状态变化回调
 
         const template = document.createElement('template');
         template.innerHTML = `
@@ -56,8 +58,13 @@ class SSEMessageList extends HTMLElement {
         // 监听滚动事件
         const container = this.shadowRoot.querySelector('#messages-container');
         container.addEventListener('scroll', () => {
-            // 使用防抖优化，避免频繁触发
+            // 清除之前的定时器
             clearTimeout(this.scrollTimeout);
+
+            // 检查是否在底部，确定是否自动滚动
+            this.setAutoScroll(this.isAtBottom());
+
+            // 使用防抖优化，避免频繁触发
             this.scrollTimeout = setTimeout(() => {
                 this.updateMessageCount();
             }, 100);
@@ -109,6 +116,38 @@ class SSEMessageList extends HTMLElement {
     }
 
     /**
+     * 检查是否滚动到底部
+     * @returns {boolean} 是否在底部
+     */
+    isAtBottom() {
+        const container = this.shadowRoot.querySelector('#messages-container');
+        const threshold = 50; // 距离底部 50px 内算作底部
+        return container.scrollHeight - container.scrollTop - container.clientHeight <= threshold;
+    }
+
+    /**
+     * 滚动到底部
+     */
+    scrollToBottom() {
+        const container = this.shadowRoot.querySelector('#messages-container');
+        container.scrollTop = container.scrollHeight;
+    }
+
+    /**
+     * 设置自动滚动状态
+     * @param {boolean} enabled 是否启用自动滚动
+     */
+    setAutoScroll(enabled) {
+        if (this.autoScroll !== enabled) {
+            this.autoScroll = enabled;
+            // 调用回调函数
+            if (this.onAutoScrollChange && typeof this.onAutoScrollChange === 'function') {
+                this.onAutoScrollChange(enabled);
+            }
+        }
+    }
+
+    /**
      * 添加消息到列表
      * @param {object} content 消息内容（包含 entryType 等字段）
      */
@@ -154,19 +193,23 @@ class SSEMessageList extends HTMLElement {
         messageEl.messageType = filterType;
 
         // 限制消息数量
-        const visibleMessages = container.querySelectorAll('sse-message:not([style*="display: none"])');
-        if (visibleMessages.length >= 200) {
-            // 找到第一个可见的消息并移除
-            const firstVisible = visibleMessages[0];
-            if (this.activeMessageRef === firstVisible) {
+        const allMessages = container.querySelectorAll('sse-message');
+        if (allMessages.length >= 200) {
+            // 找到第一条消息并移除（不管是可见还是隐藏）
+            const firstMessage = allMessages[0];
+            if (this.activeMessageRef === firstMessage) {
                 this.activeMessageRef.setActive(false);
                 this.activeMessageRef = null;
             }
-            firstVisible.remove();
+            firstMessage.remove();
         }
 
         container.appendChild(messageEl);
-        container.scrollTop = container.scrollHeight;
+
+        // 根据自动滚动状态决定是否滚动
+        if (this.autoScroll) {
+            container.scrollTop = container.scrollHeight;
+        }
 
         // 触发消息数量更新事件
         this.updateMessageCount();
@@ -218,25 +261,24 @@ class SSEMessageList extends HTMLElement {
     getFirstVisibleMessageIndex() {
         const container = this.shadowRoot.querySelector('#messages-container');
         const messages = container.querySelectorAll('sse-message');
+        const containerRect = container.getBoundingClientRect();
 
-        if (messages.length === 0) return 0;
+        let visibleIndex = 0;
 
-        // 计算滚动位置
-        const containerTop = container.getBoundingClientRect().top;
+        for (const message of messages) {
+            if (message.style.display === 'none') continue;
 
-        // 找到第一个完全或部分可见的消息
-        for (let i = 0; i < messages.length; i++) {
-            const messageTop = messages[i].getBoundingClientRect().top;
-            const messageBottom = messages[i].getBoundingClientRect().bottom;
-            const containerBottom = container.getBoundingClientRect().bottom;
+            visibleIndex++;
+            const messageRect = message.getBoundingClientRect();
 
-            // 如果消息在可视区域内
-            if (messageBottom >= containerTop && messageTop <= containerBottom) {
-                return i + 1; // 从1开始计数
+            // 检查消息是否在可视区域内
+            if (messageRect.bottom >= containerRect.top &&
+                messageRect.top <= containerRect.bottom) {
+                return visibleIndex;
             }
         }
 
-        return messages.length; // 如果都不在可视区域内，返回最后一个
+        return visibleIndex || 1;
     }
 
     /**

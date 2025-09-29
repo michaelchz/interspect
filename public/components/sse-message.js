@@ -225,6 +225,11 @@ class SSEMessage extends HTMLElement {
             document.body.appendChild(modal);
         }
 
+        // 暂停自动滚动
+        document.querySelector('sse-client')
+            ?.shadowRoot.querySelector('#message-list')
+            ?.setAutoScroll(false);
+
         // 显示弹窗
         modal.show(this.messageData.type, this.messageData.content, this.messageData.time);
     }
