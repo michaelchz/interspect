@@ -67,7 +67,7 @@ class SSEMessageList extends HTMLElement {
             // 使用防抖优化，避免频繁触发
             this.scrollTimeout = setTimeout(() => {
                 this.updateMessageCount();
-            }, 100);
+            }, 50);
         });
     }
 
@@ -87,10 +87,13 @@ class SSEMessageList extends HTMLElement {
      * 判断消息是否应该显示
      * @param {string} messageType 消息类型
      * @param {string} messageText 消息文本内容
+     * @param {string} messageUrl 消息URL
      * @returns {boolean} 是否应该显示
      */
-    shouldShowMessage(messageType, messageText) {
-        return this.isTypeMatch(messageType) && this.isTextMatch(messageText);
+    shouldShowMessage(messageType, messageText, messageUrl) {
+        return this.isTypeMatch(messageType) &&
+               this.isTextMatch(messageText) &&
+               !this.isPathMatch(messageUrl); // 不匹配忽略路径才显示
     }
 
     /**
@@ -113,6 +116,45 @@ class SSEMessageList extends HTMLElement {
     }
 
     /**
+     * 检查消息路径是否匹配忽略条件
+     * @param {string} messageUrl 消息URL
+     * @returns {boolean} 是否匹配忽略路径
+     */
+    isPathMatch(messageUrl) {
+        // 如果没有忽略路径或消息没有URL，不匹配
+        if (!this.currentFilter.ignoredPaths || !this.currentFilter.ignoredPaths.length || !messageUrl) {
+            return false;
+        }
+
+        // 检查是否匹配任何一个忽略路径
+        for (const ignoredPath of this.currentFilter.ignoredPaths) {
+            if (this.isPathPatternMatch(messageUrl, ignoredPath)) {
+                return true; // 匹配到忽略路径
+            }
+        }
+
+        return false; // 没有匹配到忽略路径
+    }
+
+    /**
+     * 检查路径是否匹配模式（支持通配符）
+     * @param {string} path 实际路径
+     * @param {string} pattern 匹配模式
+     * @returns {boolean} 是否匹配
+     */
+    isPathPatternMatch(path, pattern) {
+        // 转义正则表达式特殊字符，除了 * 和 ?
+        const regexPattern = pattern
+            .replace(/[.+^${}()|[\]\\]/g, '\\$&')
+            .replace(/\*/g, '.*')
+            .replace(/\?/g, '.');
+
+        // 支持部分路径匹配，不要求整个路径匹配
+        const regex = new RegExp(regexPattern, 'i');
+        return regex.test(path);
+    }
+
+    /**
      * 应用过滤条件
      */
     applyFilter() {
@@ -122,7 +164,8 @@ class SSEMessageList extends HTMLElement {
         messages.forEach(messageEl => {
             const messageType = messageEl.messageType || 'other';
             const messageText = messageEl.messageText || '';
-            if (this.shouldShowMessage(messageType, messageText)) {
+            const messageUrl = messageEl.messageUrl || '';
+            if (this.shouldShowMessage(messageType, messageText, messageUrl)) {
                 messageEl.style.display = 'block';
             } else {
                 messageEl.style.display = 'none';
@@ -212,7 +255,8 @@ class SSEMessageList extends HTMLElement {
         const messageText = messageParts.join(' ');
 
         // 检查是否应该显示此消息
-        if (!this.shouldShowMessage(filterType, messageText)) {
+        const messageUrl = content.data?.url || '';
+        if (!this.shouldShowMessage(filterType, messageText, messageUrl)) {
             // 虽然不显示，但仍计入总数以便统计
             this.updateMessageCount();
             return;
@@ -224,6 +268,8 @@ class SSEMessageList extends HTMLElement {
         // 保存消息类型和文本供过滤使用
         messageEl.messageType = filterType;
         messageEl.messageText = messageText;
+        // 保存 URL 供路径过滤使用
+        messageEl.messageUrl = content.data?.url || '';
 
         // 限制消息数量
         const allMessages = container.querySelectorAll('sse-message');

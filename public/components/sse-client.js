@@ -7,6 +7,7 @@ class SSEClient extends HTMLElement {
         this.reconnectEndTime = null;
         this.messageCount = 0;
         this.firstVisibleIndex = 0;
+        this.ignoredPaths = this.loadIgnoredPaths();
 
         const template = document.createElement('template');
         template.innerHTML = `
@@ -316,6 +317,29 @@ class SSEClient extends HTMLElement {
                     border-color: var(--primary-color);
                     transform: translateY(-1px);
                 }
+                .btn-ignore-path {
+                    padding: 4px 14px;
+                    border: 1px solid var(--border-color);
+                    border-radius: 4px;
+                    font-size: 12px;
+                    font-weight: 500;
+                    background-color: rgba(255, 152, 0, 0.1);
+                    color: var(--text-color);
+                    transition: all 0.2s ease;
+                    height: 32px;
+                    box-sizing: border-box;
+                    margin-right: 8px;
+                }
+                .btn-ignore-path:hover {
+                    background-color: rgba(255, 152, 0, 0.2);
+                    border-color: #ff9800;
+                    transform: translateY(-1px);
+                }
+                .ignore-path-count {
+                    margin-left: 4px;
+                    font-size: 11px;
+                    opacity: 0.8;
+                }
 
                 #messages-container-wrapper {
                     flex: 1;
@@ -352,6 +376,10 @@ class SSEClient extends HTMLElement {
                         </div>
                     </div>
                     <div class="header-right">
+                        <button id="ignore-path-btn" class="btn-ignore-path" title="忽略路径">
+                            忽略路径
+                            <span id="ignore-path-count" class="ignore-path-count">(0)</span>
+                        </button>
                         <button id="clear-btn" class="btn-clear">清空消息</button>
                         <div id="heartbeat-indicator" class="heartbeat-indicator"></div>
                         <div id="connection-status" class="connection-status disconnected">
@@ -370,6 +398,7 @@ class SSEClient extends HTMLElement {
         this.shadowRoot.appendChild(template.content.cloneNode(true));
 
         // 绑定事件
+        this.shadowRoot.querySelector('#ignore-path-btn').addEventListener('click', () => this.showIgnorePathModal());
         this.shadowRoot.querySelector('#clear-btn').addEventListener('click', () => this.clearMessages());
 
         // 绑定过滤器事件
@@ -409,9 +438,8 @@ class SSEClient extends HTMLElement {
             this.updateAutoScrollStatus(messageList.autoScroll);
         }
 
-  
         // 获取默认端点
-        this.endpoint = this.getAttribute('endpoint') || '/inspect/sse';
+        this.endpoint = this.getAttribute('endpoint') || '/interspect/sse';
     }
 
     /**
@@ -438,14 +466,15 @@ class SSEClient extends HTMLElement {
 
     /**
      * 获取当前过滤条件
-     * @returns {object} 过滤条件: { type: 'all/http/websocket', text: string }
+     * @returns {object} 过滤条件: { type: 'all/http/websocket', text: string, ignoredPaths: array }
      */
     getCurrentFilter() {
         const checkedRadio = this.shadowRoot.querySelector('.filter-radio:checked');
         const filterTextInput = this.shadowRoot.querySelector('#filter-text');
         return {
             type: checkedRadio ? checkedRadio.value : 'all',
-            text: filterTextInput ? filterTextInput.value.trim().toLowerCase() : ''
+            text: filterTextInput ? filterTextInput.value.trim().toLowerCase() : '',
+            ignoredPaths: [...this.ignoredPaths] // 返回数组副本
         };
     }
 
@@ -461,6 +490,20 @@ class SSEClient extends HTMLElement {
     }
 
     connectedCallback() {
+        // 初始化忽略路径
+        this.ignoredPaths = this.loadIgnoredPaths();
+
+        // 更新按钮上的数量显示
+        this.updateIgnorePathCount();
+
+        // 应用初始的忽略路径过滤
+        if (this.ignoredPaths.length > 0) {
+                    // 延迟执行确保消息列表组件已加载
+                    requestAnimationFrame(() => {
+                        this.handleFilterChange();
+                    });
+        }
+
         // 创建 SSE 连接实例
         this.connection = new SSEConnection({
             endpoint: this.endpoint,
@@ -475,11 +518,11 @@ class SSEClient extends HTMLElement {
         });
 
         // 延迟一点时间确保组件完全加载后自动连接
-        setTimeout(() => {
+        requestAnimationFrame(() => {
             if (this.connection) {
                 this.connection.connect();
             }
-        }, 100);
+        });
     }
 
     addMessage(content) {
@@ -713,6 +756,69 @@ class SSEClient extends HTMLElement {
             this.countdownInterval = null;
         }
         this.reconnectEndTime = null;
+    }
+
+    updateIgnorePathCount() {
+        const countElement = this.shadowRoot.querySelector('#ignore-path-count');
+        if (countElement) {
+            countElement.textContent = `(${this.ignoredPaths.length})`;
+        }
+    }
+
+    showIgnorePathModal() {
+        // 创建弹窗元素
+        let modal = document.querySelector('path-input-modal');
+        if (!modal) {
+            modal = document.createElement('path-input-modal');
+            document.body.appendChild(modal);
+        }
+
+        // 设置回调函数
+        modal.onAddPath = (path) => {
+            if (!this.ignoredPaths.includes(path)) {
+                this.ignoredPaths.push(path);
+                modal.updatePathList(this.ignoredPaths);
+                this.updateIgnorePathCount();
+            }
+        };
+
+        modal.onRemovePath = (index) => {
+            this.ignoredPaths.splice(index, 1);
+            modal.updatePathList(this.ignoredPaths);
+            this.updateIgnorePathCount();
+        };
+
+        modal.onConfirm = () => {
+            // 保存所有更改并应用过滤
+            this.saveIgnoredPaths();
+            this.applyPathFilter();
+        };
+
+        // 显示弹窗
+        modal.show(this.ignoredPaths);
+    }
+
+    loadIgnoredPaths() {
+        try {
+            const saved = localStorage.getItem('interspect-ignored-paths');
+            return saved ? JSON.parse(saved) : [];
+        } catch (e) {
+            console.warn('Failed to load ignored paths:', e);
+            return [];
+        }
+    }
+
+    saveIgnoredPaths() {
+        try {
+            localStorage.setItem('interspect-ignored-paths', JSON.stringify(this.ignoredPaths));
+        } catch (e) {
+            console.warn('Failed to save ignored paths:', e);
+        }
+    }
+
+    applyPathFilter() {
+        // 触发过滤器更新，ignoredPaths 已经包含在 getCurrentFilter 中
+        this.handleFilterChange();
     }
 
     disconnectedCallback() {
