@@ -33,14 +33,14 @@ class SSEClient extends HTMLElement {
                     justify-content: space-between;
                     align-items: center;
                     margin-bottom: 15px;
-                    padding-bottom: 10px;
+                    padding-bottom: 12px;
                     border-bottom: 1px solid var(--border-color);
                 }
 
                 .filter-controls {
                     display: flex;
                     align-items: center;
-                    gap: 15px;
+                    gap: 12px;
                 }
 
                 .filter-label {
@@ -52,7 +52,9 @@ class SSEClient extends HTMLElement {
 
                 .filter-radio-group {
                     display: flex;
-                    gap: 12px;
+                    border: 1px solid var(--border-color);
+                    border-radius: 4px;
+                    overflow: hidden;
                 }
 
                 .filter-radio-wrapper {
@@ -60,6 +62,11 @@ class SSEClient extends HTMLElement {
                     align-items: center;
                     cursor: pointer;
                     position: relative;
+                    border-right: 1px solid var(--border-color);
+                }
+
+                .filter-radio-wrapper:last-child {
+                    border-right: none;
                 }
 
                 .filter-radio {
@@ -73,51 +80,145 @@ class SSEClient extends HTMLElement {
                     font-size: 12px;
                     color: var(--text-color);
                     opacity: 0.7;
-                    padding: 4px 8px;
-                    border-radius: 4px;
+                    padding: 4px 12px;
                     transition: all 0.2s ease;
-                    border: 1px solid transparent;
+                    background-color: rgba(255, 255, 255, 0.05);
+                    cursor: pointer;
+                    display: block;
+                    text-align: center;
+                    min-width: 40px;
                 }
 
                 .filter-radio:checked + .filter-radio-label {
                     opacity: 1;
-                    background-color: rgba(106, 78, 255, 0.2);
-                    border-color: var(--primary-color);
-                    color: var(--primary-color);
+                    background-color: var(--primary-color);
+                    color: white;
                 }
 
                 .filter-radio-wrapper:hover .filter-radio-label {
                     opacity: 1;
-                    background-color: rgba(106, 78, 255, 0.1);
+                    background-color: rgba(255, 255, 255, 0.1);
                 }
 
-                .status-text {
-                    font-size: 12px;
-                    color: #666;
-                    padding: 4px 8px;
-                    background-color: #f5f5f5;
+                .filter-text-input {
+                    margin-left: 15px;
+                    position: relative;
+                }
+
+                .filter-text-input input {
+                    padding: 6px 12px;
+                    border: 1px solid var(--border-color);
                     border-radius: 4px;
-                    max-width: 200px;
-                    overflow: hidden;
-                    text-overflow: ellipsis;
-                    white-space: nowrap;
+                    background-color: rgba(255, 255, 255, 0.05);
+                    color: var(--text-color);
+                    font-size: 12px;
+                    width: 200px;
                     transition: all 0.3s ease;
+                    height: 32px;
+                    box-sizing: border-box;
                 }
 
-                .status-text.system-message {
-                    color: #2196F3;
-                    background-color: #e3f2fd;
+                .filter-text-input input:focus {
+                    outline: none;
+                    border-color: var(--primary-color);
+                    background-color: rgba(255, 255, 255, 0.1);
                 }
 
-                .status-text.error {
-                    color: #f44336;
-                    background-color: #ffebee;
+                .filter-text-input input::placeholder {
+                    color: rgba(255, 255, 255, 0.4);
+                }
+
+                .clear-text-btn {
+                    position: absolute;
+                    right: 8px;
+                    top: 50%;
+                    transform: translateY(-50%);
+                    color: rgba(255, 255, 255, 0.4);
+                    font-size: 16px;
+                    cursor: pointer;
+                    padding: 2px;
+                    border-radius: 50%;
+                    transition: all 0.2s ease;
+                    display: none;
+                }
+
+                .clear-text-btn:hover {
+                    color: rgba(255, 255, 255, 0.8);
+                    background-color: rgba(255, 255, 255, 0.1);
+                }
+
+                /* 当输入框有内容时显示清除按钮 */
+                .filter-text-input input:not(:placeholder-shown) + .clear-text-btn {
+                    display: block;
+                }
+
+                .connection-status .status-text {
+                    flex: 1;
+                }
+
+                .btn-clear {
+                    padding: 4px 14px;
+                    border: 1px solid var(--border-color);
+                    border-radius: 4px;
+                    font-size: 12px;
+                    font-weight: 500;
+                    background-color: rgba(255, 255, 255, 0.05);
+                    color: var(--text-color);
+                    transition: all 0.2s ease;
+                    height: 32px;
+                    box-sizing: border-box;
+                    display: flex;
+                    align-items: center;
+                    cursor: pointer;
+                }
+
+                .connection-status {
+                    padding: 4px 10px;
+                    border: 1px solid var(--border-color);
+                    border-radius: 4px;
+                    font-size: 12px;
+                    font-weight: 500;
+                    background-color: rgba(255, 255, 255, 0.05);
+                    color: var(--text-color);
+                    transition: all 0.2s ease;
+                    height: 32px;
+                    box-sizing: border-box;
+                    display: flex;
+                    align-items: center;
+                    gap: 6px;
+                }
+
+                .connection-status .info-icon {
+                    width: 14px;
+                    height: 14px;
+                    border-radius: 50%;
+                    opacity: 0;
+                    transition: all 0.2s ease;
+                    cursor: help;
+                    position: relative;
+                    display: flex;
+                    align-items: center;
+                    justify-content: center;
+                    font-size: 10px;
+                    font-weight: bold;
+                }
+
+                .connection-status.has-info .info-icon {
+                    opacity: 0.8;
+                    background-color: transparent;
+                    color: var(--primary-color);
+                    border: 1px solid var(--primary-color);
+                }
+
+                .connection-status.has-info .info-icon:hover {
+                    opacity: 1;
+                    transform: scale(1.1);
                 }
 
                 .header-right {
                     display: flex;
                     align-items: center;
-                    gap: 15px;
+                    gap: 10px;
                 }
 
                 .auto-scroll-status {
@@ -127,19 +228,23 @@ class SSEClient extends HTMLElement {
                     width: 24px;
                     height: 24px;
                     border-radius: 50%;
+                    border: 1px solid var(--border-color);
                     font-size: 14px;
                     cursor: default;
                     transition: all 0.3s ease;
+                    background-color: rgba(255, 255, 255, 0.05);
                 }
 
                 .auto-scroll-status.active {
                     background-color: rgba(76, 175, 80, 0.2);
-                    color: #4CAF50;
+                    color: #4caf50;
+                    border-color: rgba(76, 175, 80, 0.3);
                 }
 
                 .auto-scroll-status.paused {
                     background-color: rgba(244, 67, 54, 0.2);
                     color: #f44336;
+                    border-color: rgba(244, 67, 54, 0.3);
                 }
 
                 .auto-scroll-status .status-icon::before {
@@ -155,24 +260,29 @@ class SSEClient extends HTMLElement {
                     height: 8px;
                     background-color: #4caf50;
                     border-radius: 50%;
-                    opacity: 0.3;
-                    transition: opacity 0.3s ease;
+                    opacity: 0.4;
+                    transition: all 0.3s ease;
+                    box-shadow: 0 0 0 2px rgba(76, 175, 80, 0.2);
                 }
 
                 .heartbeat-indicator.beat {
                     opacity: 1;
                     animation: heartbeat 0.6s ease;
+                    box-shadow: 0 0 0 4px rgba(76, 175, 80, 0.3);
                 }
 
                 @keyframes heartbeat {
                     0% {
                         transform: scale(1);
+                        box-shadow: 0 0 0 2px rgba(76, 175, 80, 0.2);
                     }
                     50% {
                         transform: scale(1.5);
+                        box-shadow: 0 0 0 4px rgba(76, 175, 80, 0.4);
                     }
                     100% {
                         transform: scale(1);
+                        box-shadow: 0 0 0 2px rgba(76, 175, 80, 0.2);
                     }
                 }
 
@@ -188,37 +298,23 @@ class SSEClient extends HTMLElement {
                     color: var(--secondary-color);
                 }
 
-                .connection-status {
-                    padding: 4px 8px;
-                    border-radius: 4px;
-                    font-size: 12px;
-                    font-weight: 500;
+                .connection-status.connected {
+                    background-color: rgba(76, 175, 80, 0.2);
+                    color: #4caf50;
+                    border-color: rgba(76, 175, 80, 0.3);
                 }
 
-                .connected {
-                    background-color: #4caf50;
-                    color: white;
+                .connection-status.disconnected {
+                    background-color: rgba(244, 67, 54, 0.2);
+                    color: #f44336;
+                    border-color: rgba(244, 67, 54, 0.3);
                 }
 
-                .disconnected {
-                    background-color: #f44336;
-                    color: white;
-                }
-
-
-                .btn-clear {
-                    padding: 6px 12px;
-                    border: none;
-                    border-radius: 4px;
-                    cursor: pointer;
-                    font-size: 12px;
-                    background-color: #666;
-                    color: white;
-                    transition: background-color 0.2s;
-                }
 
                 .btn-clear:hover {
-                    background-color: #555;
+                    background-color: rgba(255, 255, 255, 0.1);
+                    border-color: var(--primary-color);
+                    transform: translateY(-1px);
                 }
 
                 #messages-container-wrapper {
@@ -236,11 +332,10 @@ class SSEClient extends HTMLElement {
                         </div>
                     </div>
                     <div class="filter-controls">
-                        <span class="filter-label">过滤:</span>
                         <div class="filter-radio-group">
                             <div class="filter-radio-wrapper">
                                 <input type="radio" id="filter-all" name="message-filter" value="all" class="filter-radio" checked>
-                                <label for="filter-all" class="filter-radio-label">全部</label>
+                                <label for="filter-all" class="filter-radio-label">ALL</label>
                             </div>
                             <div class="filter-radio-wrapper">
                                 <input type="radio" id="filter-http" name="message-filter" value="http" class="filter-radio">
@@ -248,15 +343,21 @@ class SSEClient extends HTMLElement {
                             </div>
                             <div class="filter-radio-wrapper">
                                 <input type="radio" id="filter-websocket" name="message-filter" value="websocket" class="filter-radio">
-                                <label for="filter-websocket" class="filter-radio-label">WebSocket</label>
+                                <label for="filter-websocket" class="filter-radio-label">WS</label>
                             </div>
+                        </div>
+                        <div class="filter-text-input">
+                            <input type="text" id="filter-text" placeholder="搜索消息内容..." />
+                            <span class="clear-text-btn" id="clear-text-btn" title="清除文本">×</span>
                         </div>
                     </div>
                     <div class="header-right">
                         <button id="clear-btn" class="btn-clear">清空消息</button>
-                        <div id="status-text" class="status-text" title="状态信息"></div>
                         <div id="heartbeat-indicator" class="heartbeat-indicator"></div>
-                        <div id="connection-status" class="connection-status disconnected">未连接</div>
+                        <div id="connection-status" class="connection-status disconnected">
+                            <span class="status-text">未连接</span>
+                            <span class="info-icon"></span>
+                        </div>
                     </div>
                 </div>
 
@@ -274,6 +375,20 @@ class SSEClient extends HTMLElement {
         // 绑定过滤器事件
         this.shadowRoot.querySelectorAll('.filter-radio').forEach(radio => {
             radio.addEventListener('change', () => this.handleFilterChange());
+        });
+
+        // 绑定文本过滤输入事件（使用防抖）
+        const filterTextInput = this.shadowRoot.querySelector('#filter-text');
+        const clearTextBtn = this.shadowRoot.querySelector('#clear-text-btn');
+        const debouncedFilterChange = this.debounce(() => this.handleFilterChange(), 300);
+
+        filterTextInput.addEventListener('input', debouncedFilterChange);
+
+        // 绑定清除按钮点击事件
+        clearTextBtn.addEventListener('click', () => {
+            filterTextInput.value = '';
+            filterTextInput.dispatchEvent(new Event('input'));
+            filterTextInput.focus();
         });
 
         // 监听消息列表的数量变化
@@ -300,6 +415,20 @@ class SSEClient extends HTMLElement {
     }
 
     /**
+     * 创建防抖函数
+     * @param {Function} fn 要执行的函数
+     * @param {number} delay 延迟时间（毫秒）
+     * @returns {Function} 防抖后的函数
+     */
+    debounce(fn, delay) {
+        let timeout;
+        return (...args) => {
+            clearTimeout(timeout);
+            timeout = setTimeout(() => fn.apply(this, args), delay);
+        };
+    }
+
+    /**
      * 获取消息列表组件
      * @returns {SSEMessageList} 消息列表组件
      */
@@ -308,12 +437,16 @@ class SSEClient extends HTMLElement {
     }
 
     /**
-     * 获取当前过滤值
-     * @returns {string} 过滤值: all/http/websocket
+     * 获取当前过滤条件
+     * @returns {object} 过滤条件: { type: 'all/http/websocket', text: string }
      */
     getCurrentFilter() {
         const checkedRadio = this.shadowRoot.querySelector('.filter-radio:checked');
-        return checkedRadio ? checkedRadio.value : 'all';
+        const filterTextInput = this.shadowRoot.querySelector('#filter-text');
+        return {
+            type: checkedRadio ? checkedRadio.value : 'all',
+            text: filterTextInput ? filterTextInput.value.trim().toLowerCase() : ''
+        };
     }
 
     /**
@@ -425,7 +558,10 @@ class SSEClient extends HTMLElement {
         const indicator = this.shadowRoot.querySelector('#heartbeat-indicator');
 
         statusEl.className = `connection-status ${status}`;
-        statusEl.textContent = text;
+        const statusTextEl = statusEl.querySelector('.status-text');
+        if (statusTextEl) {
+            statusTextEl.textContent = text;
+        }
 
         // 根据连接状态显示/隐藏心跳指示器
         if (status === 'connected') {
@@ -482,16 +618,63 @@ class SSEClient extends HTMLElement {
      * 更新状态文本
      */
     updateStatusText(text, isError = false) {
-        const statusTextEl = this.shadowRoot.querySelector('#status-text');
-        if (statusTextEl) {
-            statusTextEl.textContent = typeof text === 'string' ? text : text.message || text;
-            statusTextEl.className = 'status-text';
+        const connectionStatusEl = this.shadowRoot.querySelector('#connection-status');
+        if (!connectionStatusEl) return;
 
-            if (isError) {
-                statusTextEl.classList.add('error');
-            } else {
-                statusTextEl.classList.add('system-message');
+        const statusTextEl = connectionStatusEl.querySelector('.status-text');
+        const infoIconEl = connectionStatusEl.querySelector('.info-icon');
+        if (!statusTextEl || !infoIconEl) return;
+
+        // 保存原始状态文本
+        const originalText = statusTextEl.dataset.originalText || statusTextEl.textContent;
+        statusTextEl.dataset.originalText = originalText;
+
+        // 获取消息内容
+        const message = typeof text === 'string' ? text : text?.message || '';
+
+        if (message) {
+            // 显示信息图标
+            connectionStatusEl.classList.add('has-info');
+            infoIconEl.textContent = '!';
+            statusTextEl.dataset.fullText = `${originalText}：${message}`;
+
+            // 设置颜色
+            const color = isError ? '#f44336' : '#2196F3';
+            connectionStatusEl.style.color = color;
+            infoIconEl.style.color = color;
+            infoIconEl.style.borderColor = color;
+
+            // 添加悬停事件（只添加一次）
+            if (!connectionStatusEl.dataset.hasHoverListener) {
+                connectionStatusEl.dataset.hasHoverListener = 'true';
+                connectionStatusEl.addEventListener('mouseenter', this.handleStatusHover.bind(this, statusTextEl, infoIconEl));
+                connectionStatusEl.addEventListener('mouseleave', this.handleStatusLeave.bind(this, statusTextEl, infoIconEl));
             }
+        } else {
+            // 隐藏信息图标
+            connectionStatusEl.classList.remove('has-info');
+            statusTextEl.textContent = originalText;
+            connectionStatusEl.style.color = '';
+        }
+    }
+
+    /**
+     * 处理状态悬停
+     */
+    handleStatusHover(statusTextEl, infoIconEl) {
+        if (statusTextEl.dataset.fullText) {
+            statusTextEl.textContent = statusTextEl.dataset.fullText;
+            infoIconEl.style.display = 'none';
+        }
+    }
+
+    /**
+     * 处理状态离开
+     */
+    handleStatusLeave(statusTextEl, infoIconEl) {
+        if (statusTextEl.dataset.originalText) {
+            statusTextEl.textContent = statusTextEl.dataset.originalText;
+            infoIconEl.style.display = '';
         }
     }
 
@@ -508,7 +691,10 @@ class SSEClient extends HTMLElement {
 
             const statusEl = this.shadowRoot.querySelector('#connection-status');
             if (statusEl) {
-                statusEl.textContent = text;
+                const statusTextEl = statusEl.querySelector('.status-text');
+                if (statusTextEl) {
+                    statusTextEl.textContent = text;
+                }
             }
 
             // 倒计时结束

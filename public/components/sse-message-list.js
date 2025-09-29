@@ -3,7 +3,7 @@ class SSEMessageList extends HTMLElement {
         super();
         this.attachShadow({ mode: 'open' });
         this.activeMessageRef = null; // 当前激活的消息引用
-        this.currentFilter = 'all'; // 当前过滤条件: all/http/websocket
+        this.currentFilter = { type: 'all', text: '' }; // 当前过滤条件
         this.autoScroll = true; // 是否自动滚动
         this.onAutoScrollChange = null; // 自动滚动状态变化回调
 
@@ -73,26 +73,43 @@ class SSEMessageList extends HTMLElement {
 
     /**
      * 设置过滤条件
-     * @param {string} filter 过滤条件: all/http/websocket
+     * @param {object} filter 过滤条件: { type: 'all/http/websocket', text: string }
      */
     setFilter(filter) {
-        if (this.currentFilter !== filter) {
+        if (JSON.stringify(this.currentFilter) !== JSON.stringify(filter)) {
             this.currentFilter = filter;
             this.applyFilter();
         }
     }
 
-    
+
     /**
      * 判断消息是否应该显示
      * @param {string} messageType 消息类型
+     * @param {string} messageText 消息文本内容
      * @returns {boolean} 是否应该显示
      */
-    shouldShowMessage(messageType) {
-        if (this.currentFilter === 'all') {
-            return true;
-        }
-        return messageType === this.currentFilter;
+    shouldShowMessage(messageType, messageText) {
+        return this.isTypeMatch(messageType) && this.isTextMatch(messageText);
+    }
+
+    /**
+     * 检查消息类型是否匹配过滤条件
+     * @param {string} messageType 消息类型
+     * @returns {boolean} 是否匹配
+     */
+    isTypeMatch(messageType) {
+        return this.currentFilter.type === 'all' || messageType === this.currentFilter.type;
+    }
+
+    /**
+     * 检查消息文本是否匹配过滤条件
+     * @param {string} messageText 消息文本
+     * @returns {boolean} 是否匹配
+     */
+    isTextMatch(messageText) {
+        if (!this.currentFilter.text) return true;
+        return messageText.toLowerCase().includes(this.currentFilter.text);
     }
 
     /**
@@ -104,7 +121,8 @@ class SSEMessageList extends HTMLElement {
 
         messages.forEach(messageEl => {
             const messageType = messageEl.messageType || 'other';
-            if (this.shouldShowMessage(messageType)) {
+            const messageText = messageEl.messageText || '';
+            if (this.shouldShowMessage(messageType, messageText)) {
                 messageEl.style.display = 'block';
             } else {
                 messageEl.style.display = 'none';
@@ -179,8 +197,22 @@ class SSEMessageList extends HTMLElement {
             }
         }
 
+        // 获取消息文本内容用于过滤
+        const messageParts = [];
+        if (content && content.data) {
+            if (content.data.url) {
+                messageParts.push(content.data.method || '', content.data.url);
+            } else if (content.data.direction) {
+                messageParts.push('WebSocket', content.data.direction);
+            }
+            if (content.data.body && typeof content.data.body === 'string') {
+                messageParts.push(content.data.body);
+            }
+        }
+        const messageText = messageParts.join(' ');
+
         // 检查是否应该显示此消息
-        if (!this.shouldShowMessage(filterType)) {
+        if (!this.shouldShowMessage(filterType, messageText)) {
             // 虽然不显示，但仍计入总数以便统计
             this.updateMessageCount();
             return;
@@ -189,8 +221,9 @@ class SSEMessageList extends HTMLElement {
         // 创建新的消息元素
         const messageEl = document.createElement('sse-message');
         messageEl.setMessage(content);
-        // 保存消息类型供过滤使用
+        // 保存消息类型和文本供过滤使用
         messageEl.messageType = filterType;
+        messageEl.messageText = messageText;
 
         // 限制消息数量
         const allMessages = container.querySelectorAll('sse-message');

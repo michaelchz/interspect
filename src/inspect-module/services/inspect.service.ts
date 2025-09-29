@@ -11,7 +11,7 @@ interface RequestLog {
   body: string | Buffer;
   serviceName: string;
   timestamp: string;
-  entryType: 'request';
+  entryType: "request";
 }
 
 interface ResponseLog {
@@ -22,7 +22,7 @@ interface ResponseLog {
   body: string | Buffer;
   serviceName: string;
   timestamp: string;
-  entryType: 'response';
+  entryType: "response";
 }
 
 interface ErrorLog {
@@ -30,7 +30,7 @@ interface ErrorLog {
   stack?: string;
   serviceName: string;
   timestamp: string;
-  entryType: 'error';
+  entryType: "error";
 }
 
 interface WebSocketLog {
@@ -39,7 +39,7 @@ interface WebSocketLog {
   isBinary: boolean;
   serviceName: string;
   timestamp: string;
-  entryType: 'websocket';
+  entryType: "websocket";
 }
 
 @Injectable()
@@ -135,7 +135,7 @@ export class InspectService {
   /**
    * 记录请求日志
    */
-  logRequest(log: Omit<RequestLog, 'entryType'>): void {
+  logRequest(log: Omit<RequestLog, "entryType">): void {
     // 处理请求体（解压缩和文本检测）
     const processedBody = this.processHttpBody(log.body, log.headers);
 
@@ -154,7 +154,7 @@ export class InspectService {
       const broadcastLog = {
         ...log,
         body: processedBody,
-        entryType: 'request' as const,
+        entryType: "request" as const,
       };
 
       this.sseService.broadcast({
@@ -170,7 +170,7 @@ export class InspectService {
   /**
    * 记录响应日志
    */
-  logResponse(log: Omit<ResponseLog, 'entryType'>): void {
+  logResponse(log: Omit<ResponseLog, "entryType">): void {
     const statusIcon =
       log.statusCode >= 400 ? "❌" : log.statusCode >= 300 ? "🔄" : "✅";
 
@@ -191,7 +191,7 @@ export class InspectService {
       const broadcastLog = {
         ...log,
         body: processedBody,
-        entryType: 'response' as const,
+        entryType: "response" as const,
       };
 
       this.sseService.broadcast({
@@ -207,7 +207,7 @@ export class InspectService {
   /**
    * 记录错误日志
    */
-  logError(log: Omit<ErrorLog, 'entryType'>): void {
+  logError(log: Omit<ErrorLog, "entryType">): void {
     // 控制台日志
     this.logger.error(`Proxy error: ${log.error}`, log.stack);
 
@@ -217,7 +217,7 @@ export class InspectService {
         type: "error",
         data: {
           ...log,
-          entryType: 'error' as const,
+          entryType: "error" as const,
         },
         icon: "💥",
         message: `Proxy error: ${log.error}`,
@@ -229,7 +229,7 @@ export class InspectService {
   /**
    * 记录 WebSocket 消息日志
    */
-  logWebSocketMessage(log: Omit<WebSocketLog, 'entryType'>): void {
+  logWebSocketMessage(log: Omit<WebSocketLog, "entryType">): void {
     const direction = log.direction === "client-to-server" ? "→" : "←";
     const dataType = log.isBinary ? "BINARY" : "TEXT";
 
@@ -249,7 +249,7 @@ export class InspectService {
         type: "websocket",
         data: {
           ...log,
-          entryType: 'websocket' as const,
+          entryType: "websocket" as const,
         },
         icon: "🔌",
         message: `${log.serviceName} WebSocket ${direction}: ${dataType} (${log.body.length} bytes)`,
