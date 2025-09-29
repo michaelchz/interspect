@@ -81,13 +81,13 @@ class SSEClient extends HTMLElement {
                     font-size: 12px;
                     color: var(--text-color);
                     opacity: 0.7;
-                    padding: 4px 12px;
+                    padding: 4px 8px;
                     transition: all 0.2s ease;
                     background-color: rgba(255, 255, 255, 0.05);
                     cursor: pointer;
                     display: block;
                     text-align: center;
-                    min-width: 40px;
+                    min-width: 35px;
                 }
 
                 .filter-radio:checked + .filter-radio-label {
@@ -113,7 +113,7 @@ class SSEClient extends HTMLElement {
                     background-color: rgba(255, 255, 255, 0.05);
                     color: var(--text-color);
                     font-size: 12px;
-                    width: 200px;
+                    width: 280px;
                     transition: all 0.3s ease;
                     height: 32px;
                     box-sizing: border-box;
@@ -187,6 +187,8 @@ class SSEClient extends HTMLElement {
                     display: flex;
                     align-items: center;
                     gap: 6px;
+                    position: relative;
+                    padding-left: 24px;
                 }
 
                 .connection-status .info-icon {
@@ -219,7 +221,7 @@ class SSEClient extends HTMLElement {
                 .header-right {
                     display: flex;
                     align-items: center;
-                    gap: 10px;
+                    gap: 6px;
                 }
 
                 .auto-scroll-status {
@@ -264,6 +266,10 @@ class SSEClient extends HTMLElement {
                     opacity: 0.4;
                     transition: all 0.3s ease;
                     box-shadow: 0 0 0 2px rgba(76, 175, 80, 0.2);
+                    position: absolute;
+                    left: 8px;
+                    top: 50%;
+                    transform: translateY(-50%);
                 }
 
                 .heartbeat-indicator.beat {
@@ -274,15 +280,15 @@ class SSEClient extends HTMLElement {
 
                 @keyframes heartbeat {
                     0% {
-                        transform: scale(1);
+                        transform: translateY(-50%) scale(1);
                         box-shadow: 0 0 0 2px rgba(76, 175, 80, 0.2);
                     }
                     50% {
-                        transform: scale(1.5);
+                        transform: translateY(-50%) scale(1.5);
                         box-shadow: 0 0 0 4px rgba(76, 175, 80, 0.4);
                     }
                     100% {
-                        transform: scale(1);
+                        transform: translateY(-50%) scale(1);
                         box-shadow: 0 0 0 2px rgba(76, 175, 80, 0.2);
                     }
                 }
@@ -328,7 +334,6 @@ class SSEClient extends HTMLElement {
                     transition: all 0.2s ease;
                     height: 32px;
                     box-sizing: border-box;
-                    margin-right: 8px;
                 }
                 .btn-ignore-path:hover {
                     background-color: rgba(255, 152, 0, 0.2);
@@ -381,10 +386,10 @@ class SSEClient extends HTMLElement {
                             <span id="ignore-path-count" class="ignore-path-count">(0)</span>
                         </button>
                         <button id="clear-btn" class="btn-clear">清空消息</button>
-                        <div id="heartbeat-indicator" class="heartbeat-indicator"></div>
                         <div id="connection-status" class="connection-status disconnected">
                             <span class="status-text">未连接</span>
                             <span class="info-icon"></span>
+                            <div id="heartbeat-indicator" class="heartbeat-indicator"></div>
                         </div>
                     </div>
                 </div>
