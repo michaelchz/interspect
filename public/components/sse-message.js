@@ -124,13 +124,12 @@ class SSEMessage extends HTMLElement {
 
     /**
      * 设置消息内容
-     * @param {string} type 消息类型
      * @param {string|object} content 消息内容
      * @param {string} [time] 可选的时间戳，如果不提供则使用当前时间
      */
-    setMessage(type, content, time) {
+    setMessage(content, time) {
         // 保存消息数据用于弹窗
-        this.messageData = { type, content, time };
+        this.messageData = { content, time };
         const timeEl = this.shadowRoot.querySelector('.message-time');
         const contentEl = this.shadowRoot.querySelector('.message-content');
         const messageEl = this.shadowRoot.querySelector('.message');
@@ -172,7 +171,7 @@ class SSEMessage extends HTMLElement {
         }
 
         messageEl.className = `message${messageClass}`;
-        timeEl.textContent = `[${timestamp}] ${type}:`;
+        timeEl.textContent = `[${timestamp}]`;
         contentEl.innerHTML = contentHtml;
     }
 

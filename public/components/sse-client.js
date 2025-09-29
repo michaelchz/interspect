@@ -37,6 +37,60 @@ class SSEClient extends HTMLElement {
                     border-bottom: 1px solid var(--border-color);
                 }
 
+                .filter-controls {
+                    display: flex;
+                    align-items: center;
+                    gap: 15px;
+                }
+
+                .filter-label {
+                    font-size: 12px;
+                    color: var(--text-color);
+                    opacity: 0.8;
+                    margin-right: 5px;
+                }
+
+                .filter-radio-group {
+                    display: flex;
+                    gap: 12px;
+                }
+
+                .filter-radio-wrapper {
+                    display: flex;
+                    align-items: center;
+                    cursor: pointer;
+                    position: relative;
+                }
+
+                .filter-radio {
+                    opacity: 0;
+                    position: absolute;
+                    width: 0;
+                    height: 0;
+                }
+
+                .filter-radio-label {
+                    font-size: 12px;
+                    color: var(--text-color);
+                    opacity: 0.7;
+                    padding: 4px 8px;
+                    border-radius: 4px;
+                    transition: all 0.2s ease;
+                    border: 1px solid transparent;
+                }
+
+                .filter-radio:checked + .filter-radio-label {
+                    opacity: 1;
+                    background-color: rgba(106, 78, 255, 0.2);
+                    border-color: var(--primary-color);
+                    color: var(--primary-color);
+                }
+
+                .filter-radio-wrapper:hover .filter-radio-label {
+                    opacity: 1;
+                    background-color: rgba(106, 78, 255, 0.1);
+                }
+
                 .status-text {
                     font-size: 12px;
                     color: #666;
@@ -140,6 +194,23 @@ class SSEClient extends HTMLElement {
             <div class="sse-container">
                 <div class="sse-header">
                     <div class="sse-title">SSE 客户端</div>
+                    <div class="filter-controls">
+                        <span class="filter-label">过滤:</span>
+                        <div class="filter-radio-group">
+                            <div class="filter-radio-wrapper">
+                                <input type="radio" id="filter-all" name="message-filter" value="all" class="filter-radio" checked>
+                                <label for="filter-all" class="filter-radio-label">全部</label>
+                            </div>
+                            <div class="filter-radio-wrapper">
+                                <input type="radio" id="filter-http" name="message-filter" value="http" class="filter-radio">
+                                <label for="filter-http" class="filter-radio-label">HTTP</label>
+                            </div>
+                            <div class="filter-radio-wrapper">
+                                <input type="radio" id="filter-websocket" name="message-filter" value="websocket" class="filter-radio">
+                                <label for="filter-websocket" class="filter-radio-label">WebSocket</label>
+                            </div>
+                        </div>
+                    </div>
                     <div class="header-right">
                         <button id="clear-btn" class="btn-clear">清空消息</button>
                         <div id="status-text" class="status-text" title="状态信息"></div>
@@ -159,13 +230,18 @@ class SSEClient extends HTMLElement {
         // 绑定事件
         this.shadowRoot.querySelector('#clear-btn').addEventListener('click', () => this.clearMessages());
 
+        // 绑定过滤器事件
+        this.shadowRoot.querySelectorAll('.filter-radio').forEach(radio => {
+            radio.addEventListener('change', () => this.handleFilterChange());
+        });
+
         // 监听消息列表的数量变化
         const messageList = this.shadowRoot.querySelector('#message-list');
         if (messageList) {
             messageList.addEventListener('message-count-changed', (e) => {
                 this.messageCount = e.detail.total;
                 this.firstVisibleIndex = e.detail.firstVisible;
-                this.updateClearButtonText();
+                this.updateClearButtonText(e.detail.visible);
             });
         }
 
@@ -180,6 +256,26 @@ class SSEClient extends HTMLElement {
      */
     getMessageList() {
         return this.shadowRoot.querySelector('#message-list');
+    }
+
+    /**
+     * 获取当前过滤值
+     * @returns {string} 过滤值: all/http/websocket
+     */
+    getCurrentFilter() {
+        const checkedRadio = this.shadowRoot.querySelector('.filter-radio:checked');
+        return checkedRadio ? checkedRadio.value : 'all';
+    }
+
+    /**
+     * 处理过滤器变化
+     */
+    handleFilterChange() {
+        const filter = this.getCurrentFilter();
+        const messageList = this.getMessageList();
+        if (messageList) {
+            messageList.setFilter(filter);
+        }
     }
 
     connectedCallback() {
@@ -204,15 +300,9 @@ class SSEClient extends HTMLElement {
         }, 100);
     }
 
-    addMessage(type, content) {
-        // 如果是系统消息或错误消息，只更新到状态文本框，不添加到消息列表
-        if (type === '系统' || type === '错误') {
-            this.updateStatusText(content, type === '错误');
-        } else {
-            // 其他消息正常添加到消息列表
-            const messageList = this.getMessageList();
-            messageList.addMessage(type, content);
-        }
+    addMessage(content) {
+        const messageList = this.getMessageList();
+        messageList.addMessage(content);
     }
 
     /**
@@ -248,7 +338,7 @@ class SSEClient extends HTMLElement {
      * 处理接收到消息
      */
     handleMessage(message) {
-        this.addMessage('服务器', message);
+        this.addMessage(message);
     }
 
     /**
@@ -262,7 +352,7 @@ class SSEClient extends HTMLElement {
      * 处理连接错误
      */
     handleError(error) {
-        this.addMessage('错误', `连接错误: ${error.message}`);
+        this.updateStatusText(`连接错误: ${error.message}`, true);
     }
 
     /**
@@ -270,14 +360,14 @@ class SSEClient extends HTMLElement {
      */
     handleConnect() {
         this.stopCountdown();
-        this.addMessage('系统', 'SSE 连接已建立');
+        this.updateStatusText('SSE 连接已建立');
     }
 
     /**
      * 处理连接断开
      */
     handleDisconnect() {
-        this.addMessage('系统', 'SSE 连接已断开');
+        this.updateStatusText('SSE 连接已断开', true);
         this.getMessageList().clearMessages();
     }
 
@@ -318,10 +408,11 @@ class SSEClient extends HTMLElement {
     /**
      * 更新清空按钮的文字
      */
-    updateClearButtonText() {
+    updateClearButtonText(visibleCount) {
         const clearBtn = this.shadowRoot.querySelector('#clear-btn');
         if (clearBtn && this.messageCount > 0) {
-            clearBtn.textContent = `清空消息 (${this.firstVisibleIndex}/${this.messageCount})`;
+            const visible = visibleCount !== undefined ? visibleCount : this.messageCount;
+            clearBtn.textContent = `清空消息 (${this.firstVisibleIndex}/${visible} | ${this.messageCount})`;
         } else {
             clearBtn.textContent = '清空消息';
         }

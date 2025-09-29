@@ -3,6 +3,7 @@ class SSEMessageList extends HTMLElement {
         super();
         this.attachShadow({ mode: 'open' });
         this.activeMessageRef = null; // 当前激活的消息引用
+        this.currentFilter = 'all'; // 当前过滤条件: all/http/websocket
 
         const template = document.createElement('template');
         template.innerHTML = `
@@ -64,11 +65,54 @@ class SSEMessageList extends HTMLElement {
     }
 
     /**
-     * 添加消息到列表
-     * @param {string} type 消息类型
-     * @param {string|object} content 消息内容
+     * 设置过滤条件
+     * @param {string} filter 过滤条件: all/http/websocket
      */
-    addMessage(type, content) {
+    setFilter(filter) {
+        if (this.currentFilter !== filter) {
+            this.currentFilter = filter;
+            this.applyFilter();
+        }
+    }
+
+    
+    /**
+     * 判断消息是否应该显示
+     * @param {string} messageType 消息类型
+     * @returns {boolean} 是否应该显示
+     */
+    shouldShowMessage(messageType) {
+        if (this.currentFilter === 'all') {
+            return true;
+        }
+        return messageType === this.currentFilter;
+    }
+
+    /**
+     * 应用过滤条件
+     */
+    applyFilter() {
+        const container = this.shadowRoot.querySelector('#messages-container');
+        const messages = container.querySelectorAll('sse-message');
+
+        messages.forEach(messageEl => {
+            const messageType = messageEl.messageType || 'other';
+            if (this.shouldShowMessage(messageType)) {
+                messageEl.style.display = 'block';
+            } else {
+                messageEl.style.display = 'none';
+            }
+        });
+
+        // 更新消息计数
+        this.updateMessageCount();
+    }
+
+    /**
+     * 添加消息到列表
+     * @param {object} content 消息内容（包含 entryType 等字段）
+     */
+    addMessage(content) {
         const container = this.shadowRoot.querySelector('#messages-container');
 
         // 清除占位消息
@@ -77,20 +121,48 @@ class SSEMessageList extends HTMLElement {
             container.innerHTML = '';
         }
 
+        // 从 content 中获取 entryType 并映射到过滤类型
+        let filterType = 'other';
+        if (content && content.data && content.data.entryType) {
+            switch (content.data.entryType) {
+                case 'request':
+                case 'response':
+                    filterType = 'http';
+                    break;
+                case 'websocket':
+                    filterType = 'websocket';
+                    break;
+                case 'error':
+                    filterType = 'error';
+                    break;
+                default:
+                    filterType = 'other';
+            }
+        }
+
+        // 检查是否应该显示此消息
+        if (!this.shouldShowMessage(filterType)) {
+            // 虽然不显示，但仍计入总数以便统计
+            this.updateMessageCount();
+            return;
+        }
+
         // 创建新的消息元素
         const messageEl = document.createElement('sse-message');
-        messageEl.setMessage(type, content);
+        messageEl.setMessage(content);
+        // 保存消息类型供过滤使用
+        messageEl.messageType = filterType;
 
         // 限制消息数量
-        const messages = container.querySelectorAll('sse-message');
-        if (messages.length >= 200) {
-            const removedMessage = messages[0];
-            // 如果移除的是激活的消息，重置激活状态
-            if (this.activeMessageRef === removedMessage) {
+        const visibleMessages = container.querySelectorAll('sse-message:not([style*="display: none"])');
+        if (visibleMessages.length >= 200) {
+            // 找到第一个可见的消息并移除
+            const firstVisible = visibleMessages[0];
+            if (this.activeMessageRef === firstVisible) {
                 this.activeMessageRef.setActive(false);
                 this.activeMessageRef = null;
             }
-            removedMessage.remove();
+            firstVisible.remove();
         }
 
         container.appendChild(messageEl);
@@ -122,7 +194,8 @@ class SSEMessageList extends HTMLElement {
      */
     updateMessageCount() {
         const container = this.shadowRoot.querySelector('#messages-container');
-        const messages = container.querySelectorAll('sse-message');
+        const allMessages = container.querySelectorAll('sse-message');
+        const visibleMessages = container.querySelectorAll('sse-message:not([style*="display: none"])');
         const firstVisibleIndex = this.getFirstVisibleMessageIndex();
 
         // 触发自定义事件通知消息数量变化
@@ -130,9 +203,10 @@ class SSEMessageList extends HTMLElement {
             bubbles: true,
             composed: true,
             detail: {
-                total: messages.length,
+                total: allMessages.length,
+                visible: visibleMessages.length,
                 firstVisible: firstVisibleIndex,
-                hasMessages: messages.length > 0
+                hasMessages: allMessages.length > 0
             }
         }));
     }
