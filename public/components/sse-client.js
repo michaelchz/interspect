@@ -41,7 +41,7 @@ class SSEClient extends HTMLElement {
                 .filter-controls {
                     display: flex;
                     align-items: center;
-                    gap: 12px;
+                    gap: 8px;
                 }
 
                 .filter-label {
@@ -102,7 +102,6 @@ class SSEClient extends HTMLElement {
                 }
 
                 .filter-text-input {
-                    margin-left: 15px;
                     position: relative;
                 }
 
@@ -225,17 +224,24 @@ class SSEClient extends HTMLElement {
                 }
 
                 .auto-scroll-status {
+                    padding: 4px 10px;
+                    border: 1px solid var(--border-color);
+                    border-radius: 4px;
+                    font-size: 12px;
+                    font-weight: 500;
+                    background-color: rgba(255, 255, 255, 0.05);
+                    color: var(--text-color);
+                    transition: all 0.2s ease;
+                    height: 32px;
+                    box-sizing: border-box;
                     display: flex;
                     align-items: center;
-                    justify-content: center;
-                    width: 24px;
-                    height: 24px;
-                    border-radius: 50%;
-                    border: 1px solid var(--border-color);
-                    font-size: 14px;
-                    cursor: default;
-                    transition: all 0.3s ease;
-                    background-color: rgba(255, 255, 255, 0.05);
+                    gap: 6px;
+                    cursor: pointer;
+                }
+
+                .auto-scroll-status:hover {
+                    background-color: rgba(255, 255, 255, 0.1);
                 }
 
                 .auto-scroll-status.active {
@@ -245,17 +251,17 @@ class SSEClient extends HTMLElement {
                 }
 
                 .auto-scroll-status.paused {
-                    background-color: rgba(244, 67, 54, 0.2);
-                    color: #f44336;
-                    border-color: rgba(244, 67, 54, 0.3);
+                    background-color: rgba(255, 255, 255, 0.05);
+                    color: var(--text-color);
+                    border-color: var(--border-color);
                 }
 
                 .auto-scroll-status .status-icon::before {
-                    content: '▶';
+                    content: '🟢';
                 }
 
                 .auto-scroll-status.paused .status-icon::before {
-                    content: '❚❚';
+                    content: '⚪';
                 }
 
                 .heartbeat-indicator {
@@ -356,9 +362,6 @@ class SSEClient extends HTMLElement {
                 <div class="sse-header">
                     <div class="title-container">
                         <div class="sse-title">实时消息流</div>
-                        <div class="auto-scroll-status" id="auto-scroll-status" title="自动滚动状态">
-                            <span class="status-icon"></span>
-                        </div>
                     </div>
                     <div class="filter-controls">
                         <div class="filter-radio-group">
@@ -379,13 +382,17 @@ class SSEClient extends HTMLElement {
                             <input type="text" id="filter-text" placeholder="搜索消息内容..." />
                             <span class="clear-text-btn" id="clear-text-btn" title="清除文本">×</span>
                         </div>
-                    </div>
-                    <div class="header-right">
                         <button id="ignore-path-btn" class="btn-ignore-path" title="忽略路径">
                             忽略路径
                             <span id="ignore-path-count" class="ignore-path-count">(0)</span>
                         </button>
+                    </div>
+                    <div class="header-right">
                         <button id="clear-btn" class="btn-clear">清空消息</button>
+                        <div class="auto-scroll-status" id="auto-scroll-status" title="🟢 自动滚动 / ⚪ 停止滚动">
+                            <span class="status-icon"></span>
+                            <span class="status-text">自动滚动</span>
+                        </div>
                         <div id="connection-status" class="connection-status disconnected">
                             <span class="status-text">未连接</span>
                             <span class="info-icon"></span>
@@ -659,6 +666,10 @@ class SSEClient extends HTMLElement {
         const autoScrollStatus = this.shadowRoot.querySelector('#auto-scroll-status');
         if (autoScrollStatus) {
             autoScrollStatus.className = `auto-scroll-status ${isActive ? 'active' : 'paused'}`;
+            const statusText = autoScrollStatus.querySelector('.status-text');
+            if (statusText) {
+                statusText.textContent = isActive ? '自动滚动' : '停止滚动';
+            }
         }
     }
 
