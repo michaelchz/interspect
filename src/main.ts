@@ -1,12 +1,8 @@
 import { NestFactory } from "@nestjs/core";
+import { ConfigService } from "@nestjs/config";
 import { AppModule } from "./app.module";
-import { WebSocketGateway } from "./websocket-module/services/websocket.gateway";
-import * as express from "express";
-import { Request, Response, NextFunction } from "express";
-import * as http from "http";
 import { FileLogger } from "./common/utils/file-logger.service";
-import { join } from "path";
-import { AllExceptionsFilter } from "./common/filters/all-exceptions.filter";
+import { setupApplication } from "./common/bootstrap";
 
 async function bootstrap() {
   const app = await NestFactory.create(AppModule, {
@@ -14,55 +10,17 @@ async function bootstrap() {
     bodyParser: false, // 禁用 NestJS 全局 body parser
   });
 
-  app.useGlobalFilters(new AllExceptionsFilter());
-
-  // 启用优雅关机钩子
-  // 这会在收到终止信号时，自动调用 app.close()，
+  // 启用优雅关机钩子：这会在收到终止信号时，自动调用 app.close()，
   // 从而触发 onModuleDestroy、beforeApplicationShutdown 等生命周期钩子。
   app.enableShutdownHooks();
 
-  // 先注册静态服务
-  app.use(
-    "/interspect/web",
-    express.static(join(__dirname, "..", "dist", "public")),
-  );
+  // 设置应用程序配置（过滤器、静态资源、代理处理、WebSocket）
+  setupApplication(app);
 
-  // 添加 /interspect 重定向到 /interspect/web/
-  app.use("/interspect", (req: Request, res: Response, next: NextFunction) => {
-    if (req.path === "/") {
-      // 如果访问的是 /interspect，重定向到 /interspect/web/
-      return res.redirect(301, "/interspect/web/");
-    }
-    next();
-  });
+  // 获取端口配置并启动应用
+  const configService = app.get(ConfigService);
+  const port = configService.get<number>('PORT') ?? 3000;
 
-  // 重要：代理路由必须在中间件之前注册
-  // 这样代理可以直接访问原始请求流
-  console.log(">>> Setting up raw proxy handler...");
-  app.use(
-    (
-      req: Request & { rawBodyNeeded?: boolean },
-      res: Response,
-      next: NextFunction,
-    ) => {
-      if (req.path.startsWith("/api/")) {
-        console.log(
-          ">>> Intercepting API request for proxy:",
-          req.method,
-          req.path,
-        );
-        // 这里我们仍然需要让代理处理，但是标记这是一个需要原始流的请求
-        req.rawBodyNeeded = true;
-      }
-      next();
-    },
-  );
-
-  // 初始化 WebSocket 服务器
-  const server = app.getHttpServer() as unknown as http.Server;
-  const webSocketGateway = app.get<WebSocketGateway>(WebSocketGateway);
-  webSocketGateway.initialize(server);
-
-  await app.listen(process.env.PORT ?? 3000);
+  await app.listen(port);
 }
 void bootstrap();
