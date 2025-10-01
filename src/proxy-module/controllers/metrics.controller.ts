@@ -1,6 +1,6 @@
 import { Controller, Get } from "@nestjs/common";
 import { ConfigService } from "@nestjs/config";
-import { MetricsService } from "../services/metrics.service";
+import { ProxyMetricsService } from "../services/proxy-metrics.service";
 import { AgentMetricsService } from "../services/agent-metrics.service";
 import { SseService } from "../../inspect-module/services/sse.service";
 
@@ -8,16 +8,16 @@ import { SseService } from "../../inspect-module/services/sse.service";
 export class MetricsController {
   constructor(
     private readonly configService: ConfigService,
-    private readonly metricsService: MetricsService,
+    private readonly proxyMetricsService: ProxyMetricsService,
     private readonly agentMetricsService: AgentMetricsService,
     private readonly sseService: SseService,
   ) {}
 
   @Get()
   getDashboardMetrics() {
-    const generalMetrics = this.metricsService.getMetrics();
+    const generalMetrics = this.proxyMetricsService.getMetrics();
     const agentStatus = this.agentMetricsService.getAllAgentStatuses();
-    const uptime = this.metricsService.getUptime();
+    const uptime = this.proxyMetricsService.getUptime();
 
     return {
       agentStatus,
@@ -28,7 +28,7 @@ export class MetricsController {
       },
       interspect: {
         sseConnections: this.sseService.getClientCount(),
-        uptime: this.metricsService.getUptime(),
+        uptime: this.proxyMetricsService.getUptime(),
       },
     };
   }

@@ -5,7 +5,7 @@ import { IncomingMessage } from "http";
 import { Request, Response } from "express";
 import * as http from "http";
 import * as https from "https";
-import { MetricsService } from "./metrics.service";
+import { ProxyMetricsService } from "./proxy-metrics.service";
 import { InspectService } from "../../inspect-module/services/inspect.service";
 
 type ProxyServer = ReturnType<typeof createProxyServer>;
@@ -18,7 +18,7 @@ export class HttpProxy implements OnModuleDestroy {
 
   constructor(
     private readonly configService: ConfigService,
-    private readonly metricsService: MetricsService,
+    private readonly metricsService: ProxyMetricsService,
     @Inject("STATIC_HTTP_AGENT") private readonly httpAgent: http.Agent,
     @Inject("STATIC_HTTPS_AGENT") private readonly httpsAgent: https.Agent,
     private readonly inspectService: InspectService,

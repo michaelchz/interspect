@@ -1,7 +1,7 @@
 import { Injectable } from "@nestjs/common";
 
 @Injectable()
-export class MetricsService {
+export class ProxyMetricsService {
   // Static Service Metrics
   private staticRequestCount: number = 0;
   private staticHttpCounts: Map<number, number> = new Map();

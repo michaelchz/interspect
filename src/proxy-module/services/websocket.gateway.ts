@@ -4,7 +4,7 @@ import { WebSocket as WSWebSocket } from "ws";
 import { Server as WSServer } from "ws";
 import { IncomingMessage } from "http";
 import { InspectService } from "../../inspect-module/services/inspect.service";
-import { MetricsService } from "../../proxy-module/services/metrics.service";
+import { ProxyMetricsService } from "./proxy-metrics.service";
 import * as http from "http";
 
 @Injectable()
@@ -18,7 +18,7 @@ export class WebSocketGateway implements OnModuleDestroy {
   constructor(
     private readonly configService: ConfigService,
     private readonly inspectService: InspectService,
-    private readonly metricsService: MetricsService,
+    private readonly metricsService: ProxyMetricsService,
   ) {}
 
   /**
