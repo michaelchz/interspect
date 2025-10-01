@@ -79,19 +79,9 @@ export class WebSocketGateway implements OnModuleDestroy {
           const startTime = Date.now();
 
           // 使用 InspectService 记录
-          const messageData = isBinary
-            ? "[binary data]"
-            : typeof data === "string"
-              ? data
-              : data instanceof Buffer
-                ? data.toString("utf8")
-                : data instanceof ArrayBuffer
-                  ? Buffer.from(data).toString("utf8")
-                  : "[unknown data type]";
-
           this.inspectService.logWebSocketMessage({
             direction: "client-to-server",
-            body: messageData,
+            body: data,
             isBinary,
             timestamp: new Date().toISOString(),
           });
@@ -121,19 +111,9 @@ export class WebSocketGateway implements OnModuleDestroy {
           const startTime = Date.now();
 
           // 使用 InspectService 记录
-          const messageData = isBinary
-            ? "[binary data]"
-            : typeof data === "string"
-              ? data
-              : data instanceof Buffer
-                ? data.toString("utf8")
-                : data instanceof ArrayBuffer
-                  ? Buffer.from(data).toString("utf8")
-                  : "[unknown data type]";
-
           this.inspectService.logWebSocketMessage({
             direction: "server-to-client",
-            body: messageData,
+            body: data,
             isBinary,
             timestamp: new Date().toISOString(),
           });

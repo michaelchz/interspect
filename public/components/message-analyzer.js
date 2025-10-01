@@ -362,20 +362,35 @@ class MessageAnalyzer extends HTMLElement {
 
             // 检查是否有 body 字段
             if (parsed && parsed.body !== undefined) {
-                // 将 body 部分格式化为字符串
-                const bodyStr = JSON.stringify(parsed.body, null, 2);
+                // 检查body内容是否为二进制数据
+                const bodyContent = parsed.body;
+                const isBinaryBody = bodyContent && (
+                    typeof bodyContent === 'string' && (
+                        bodyContent.includes('◆◇[BINARY_DATA:') ||
+                        bodyContent.includes('[压缩数据解压失败]') ||
+                        bodyContent.includes('[invalid JSON]') ||
+                        // 检查是否为纯粹的二进制标识（只有字节数信息）
+                        bodyContent.match(/^◆◇\[BINARY_DATA:\d+bytes\]◇◆$/)
+                    )
+                );
 
-                // 在文本中查找 body 部分的位置
-                const bodyIndex = currentText.indexOf(bodyStr);
-                if (bodyIndex !== -1) {
-                    // 记录 body 内容的选择位置
-                    this.textHistory.recordSelection(bodyIndex, bodyIndex + bodyStr.length, 'BODY');
+                // 如果不是二进制数据，才进行自动选择
+                if (!isBinaryBody) {
+                    // 将 body 部分格式化为字符串
+                    const bodyStr = JSON.stringify(parsed.body, null, 2);
 
-                    // 更新最后选择位置
-                    this.lastSelectionPosition = {
-                        start: bodyIndex,
-                        end: bodyIndex + bodyStr.length
-                    };
+                    // 在文本中查找 body 部分的位置
+                    const bodyIndex = currentText.indexOf(bodyStr);
+                    if (bodyIndex !== -1) {
+                        // 记录 body 内容的选择位置
+                        this.textHistory.recordSelection(bodyIndex, bodyIndex + bodyStr.length, 'BODY');
+
+                        // 更新最后选择位置
+                        this.lastSelectionPosition = {
+                            start: bodyIndex,
+                            end: bodyIndex + bodyStr.length
+                        };
+                    }
                 }
             }
         } catch (e) {
