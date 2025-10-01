@@ -1,5 +1,5 @@
 import { Injectable, Logger, OnModuleDestroy, Inject } from "@nestjs/common";
-import { AppConfigService } from "../../app-config-module/services/app-config.service";
+import { ConfigService } from "@nestjs/config";
 import { createProxyServer } from "http-proxy";
 import { IncomingMessage } from "http";
 import { Request, Response } from "express";
@@ -17,7 +17,7 @@ export class StaticService implements OnModuleDestroy {
   private readonly targetServerUrl: string;
 
   constructor(
-    private readonly appConfigService: AppConfigService,
+    private readonly configService: ConfigService,
     private readonly metricsService: MetricsService,
     @Inject("STATIC_HTTP_AGENT") private readonly httpAgent: http.Agent,
     @Inject("STATIC_HTTPS_AGENT") private readonly httpsAgent: https.Agent,
@@ -25,7 +25,11 @@ export class StaticService implements OnModuleDestroy {
   ) {
     this.logger = new Logger(StaticService.name);
 
-    this.targetServerUrl = this.appConfigService.targetServerUrl;
+    const targetServerUrl = this.configService.get<string>('TARGET_SERVER_URL');
+    if (!targetServerUrl) {
+      throw new Error('TARGET_SERVER_URL 环境变量未配置');
+    }
+    this.targetServerUrl = targetServerUrl;
 
     // 创建代理实例
     // - Docker环境下，访问静态视频时，目标服务器不会释放连接，需要设置超时机制回收

@@ -1,7 +1,7 @@
 import { Injectable, Logger, OnModuleDestroy } from "@nestjs/common";
+import { ConfigService } from "@nestjs/config";
 import { WebSocket as WSWebSocket } from "ws";
 import { Server as WSServer } from "ws";
-import { AppConfigService } from "../../app-config-module/services/app-config.service";
 import { IncomingMessage } from "http";
 import { InspectService } from "../../inspect-module/services/inspect.service";
 import { MetricsService } from "../../proxy-module/services/metrics.service";
@@ -16,7 +16,7 @@ export class WebSocketGateway implements OnModuleDestroy {
   private isClosing = false;
 
   constructor(
-    private readonly appConfigService: AppConfigService,
+    private readonly configService: ConfigService,
     private readonly inspectService: InspectService,
     private readonly metricsService: MetricsService,
   ) {}
@@ -50,9 +50,13 @@ export class WebSocketGateway implements OnModuleDestroy {
     this.logger.log(`客户端请求路径: ${requestPath}`);
 
     // 构建完整的 WebSocket URL，包含原始请求路径
+    const targetServerUrl = this.configService.get<string>('TARGET_SERVER_URL');
+    if (!targetServerUrl) {
+      throw new Error('TARGET_SERVER_URL 环境变量未配置');
+    }
     const targetUrl = new URL(
       requestPath,
-      this.appConfigService.targetServerUrl.replace(/^http/, "ws"),
+      targetServerUrl.replace(/^http/, "ws"),
     ).href;
 
     this.logger.log(`连接到目标服务器: ${targetUrl}`);

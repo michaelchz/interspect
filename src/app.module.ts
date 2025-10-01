@@ -1,4 +1,5 @@
 import { Module, OnModuleInit } from "@nestjs/common";
+import { ConfigModule } from "@nestjs/config";
 import { AppController } from "./app.controller";
 import { AppService } from "./app.service";
 import { InspectModule } from "./inspect-module/inspect.module";
@@ -6,7 +7,12 @@ import { ProxyModule } from "./proxy-module/proxy.module";
 import { WebSocketModule } from "./websocket-module/websocket.module";
 
 @Module({
-  imports: [InspectModule, ProxyModule, WebSocketModule],
+  imports: [
+    ConfigModule.forRoot(),
+    InspectModule,
+    ProxyModule,
+    WebSocketModule
+  ],
   controllers: [AppController],
   providers: [AppService],
 })

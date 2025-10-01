@@ -1,6 +1,6 @@
 import { Module, Logger, OnModuleDestroy } from "@nestjs/common";
+import { ConfigModule } from "@nestjs/config";
 import { StaticService } from "./services/static.service";
-import { AppConfigModule } from "../app-config-module/app-config.module";
 import { InspectModule } from "../inspect-module/inspect.module";
 import { MetricsService } from "./services/metrics.service"; // New import path
 import { MetricsController } from "./controllers/metrics.controller"; // New import
@@ -24,7 +24,7 @@ const staticHttpsAgent = new https.Agent({
 });
 
 @Module({
-  imports: [AppConfigModule, InspectModule],
+  imports: [ConfigModule, InspectModule],
   controllers: [MetricsController, ProxyController],
   providers: [
     StaticService,
