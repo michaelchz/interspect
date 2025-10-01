@@ -98,8 +98,8 @@ export class WebSocketGateway implements OnModuleDestroy {
           });
 
           // 记录消息统计
-          this.metricsService.incrementClientMessagesReceived();
-          this.metricsService.incrementServerMessagesSent();
+          this.metricsService.incrementClientMessagesSent();
+          this.metricsService.incrementServerMessagesReceived();
 
           // 根据原始消息类型发送
           if (!isBinary && data instanceof Buffer) {
@@ -141,8 +141,8 @@ export class WebSocketGateway implements OnModuleDestroy {
           });
 
           // 记录消息统计
-          this.metricsService.incrementServerMessagesReceived();
-          this.metricsService.incrementClientMessagesSent();
+          this.metricsService.incrementServerMessagesSent();
+          this.metricsService.incrementClientMessagesReceived();
 
           // 根据原始消息类型发送
           if (!isBinary && data instanceof Buffer) {
