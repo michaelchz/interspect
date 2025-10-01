@@ -1,6 +1,6 @@
 import { INestApplication } from '@nestjs/common';
 import * as http from 'http';
-import { WebSocketGateway } from '../../websocket-module/services/websocket.gateway';
+import { WebSocketGateway } from '../../proxy-module/services/websocket.gateway';
 
 /**
  * 初始化 WebSocket 代理服务

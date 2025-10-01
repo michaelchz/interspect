@@ -11,7 +11,7 @@ import { InspectService } from "../../inspect-module/services/inspect.service";
 type ProxyServer = ReturnType<typeof createProxyServer>;
 
 @Injectable()
-export class StaticService implements OnModuleDestroy {
+export class HttpProxy implements OnModuleDestroy {
   private readonly logger: Logger;
   private readonly proxy: ProxyServer;
   private readonly targetServerUrl: string;
@@ -23,7 +23,7 @@ export class StaticService implements OnModuleDestroy {
     @Inject("STATIC_HTTPS_AGENT") private readonly httpsAgent: https.Agent,
     private readonly inspectService: InspectService,
   ) {
-    this.logger = new Logger(StaticService.name);
+    this.logger = new Logger(HttpProxy.name);
 
     const targetServerUrl = this.configService.get<string>('TARGET_SERVER_URL');
     if (!targetServerUrl) {
@@ -48,7 +48,7 @@ export class StaticService implements OnModuleDestroy {
     this.setupProxyListeners(this.proxy);
 
     this.logger.log(
-      `${StaticService.name} initialized with target server: ${this.targetServerUrl}`,
+      `${HttpProxy.name} initialized with target server: ${this.targetServerUrl}`,
     );
   }
 
@@ -78,7 +78,7 @@ export class StaticService implements OnModuleDestroy {
               url: req.url,
               headers: req.headers,
               body: data, // 直接传递 Buffer
-              serviceName: StaticService.name,
+              serviceName: HttpProxy.name,
               timestamp: new Date().toISOString(),
             });
           } else {
@@ -88,7 +88,7 @@ export class StaticService implements OnModuleDestroy {
               url: req.url,
               headers: req.headers,
               body: "",
-              serviceName: StaticService.name,
+              serviceName: HttpProxy.name,
               timestamp: new Date().toISOString(),
             });
           }
@@ -101,7 +101,7 @@ export class StaticService implements OnModuleDestroy {
       this.inspectService.logError({
         error: err.message,
         stack: err.stack,
-        serviceName: StaticService.name,
+        serviceName: HttpProxy.name,
         timestamp: new Date().toISOString(),
       });
 
@@ -109,7 +109,7 @@ export class StaticService implements OnModuleDestroy {
         res.writeHead(500, { "Content-Type": "application/json" });
         res.end(
           JSON.stringify({
-            message: `Internal ${StaticService.name} error`,
+            message: `Internal ${HttpProxy.name} error`,
           }),
         );
       }
@@ -145,7 +145,7 @@ export class StaticService implements OnModuleDestroy {
           statusCode,
           headers: proxyRes.headers,
           body: responseBody,
-          serviceName: StaticService.name,
+          serviceName: HttpProxy.name,
           timestamp: new Date().toISOString(),
         });
       });
