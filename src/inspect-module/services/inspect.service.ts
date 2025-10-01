@@ -9,7 +9,6 @@ interface RequestLog {
   url: string | undefined;
   headers: IncomingHttpHeaders;
   body: string | Buffer;
-  serviceName: string;
   timestamp: string;
   entryType: "request";
 }
@@ -20,7 +19,6 @@ interface ResponseLog {
   statusCode: number;
   headers: IncomingHttpHeaders;
   body: string | Buffer;
-  serviceName: string;
   timestamp: string;
   entryType: "response";
 }
@@ -28,7 +26,6 @@ interface ResponseLog {
 interface ErrorLog {
   error: string;
   stack?: string;
-  serviceName: string;
   timestamp: string;
   entryType: "error";
 }
@@ -37,7 +34,6 @@ interface WebSocketLog {
   direction: "client-to-server" | "server-to-client";
   body: string;
   isBinary: boolean;
-  serviceName: string;
   timestamp: string;
   entryType: "websocket";
 }
@@ -140,7 +136,7 @@ export class InspectService {
     const processedBody = this.processHttpBody(log.body, log.headers);
 
     // 控制台日志
-    this.logger.log(`📥 ${log.serviceName} Request: ${log.method} ${log.url}`);
+    this.logger.log(`📥 Request: ${log.method} ${log.url}`);
     this.logger.debug(`Request Headers: ${JSON.stringify(log.headers)}`);
 
     // 记录请求体内容（调试级别）
@@ -161,7 +157,7 @@ export class InspectService {
         type: "request",
         data: broadcastLog,
         icon: "📥",
-        message: `${log.serviceName} Request: ${log.method} ${log.url}`,
+        message: `Request: ${log.method} ${log.url}`,
         timestamp: log.timestamp,
       });
     }
@@ -179,7 +175,7 @@ export class InspectService {
 
     // 控制台日志
     this.logger[log.statusCode >= 400 ? "warn" : "debug"](
-      `${statusIcon} ${log.serviceName} Response: ${log.method} ${log.url} -> ${log.statusCode}`,
+      `${statusIcon} Response: ${log.method} ${log.url} -> ${log.statusCode}`,
     );
 
     // 记录响应体内容（调试级别）
@@ -198,7 +194,7 @@ export class InspectService {
         type: "response",
         data: broadcastLog,
         icon: statusIcon,
-        message: `${log.serviceName} Response: ${log.method} ${log.url} -> ${log.statusCode}`,
+        message: `Response: ${log.method} ${log.url} -> ${log.statusCode}`,
         timestamp: log.timestamp,
       });
     }
@@ -235,7 +231,7 @@ export class InspectService {
 
     // 控制台日志
     this.logger.debug(
-      `🔌 ${log.serviceName} WebSocket ${direction}: ${dataType} (${log.body.length} bytes)`,
+      `🔌 WebSocket ${direction}: ${dataType} (${log.body.length} bytes)`,
     );
 
     // 记录消息内容（调试级别）
@@ -252,7 +248,7 @@ export class InspectService {
           entryType: "websocket" as const,
         },
         icon: "🔌",
-        message: `${log.serviceName} WebSocket ${direction}: ${dataType} (${log.body.length} bytes)`,
+        message: `WebSocket ${direction}: ${dataType} (${log.body.length} bytes)`,
         timestamp: log.timestamp,
       });
     }

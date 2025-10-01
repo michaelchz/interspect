@@ -78,7 +78,6 @@ export class HttpProxy implements OnModuleDestroy {
               url: req.url,
               headers: req.headers,
               body: data, // 直接传递 Buffer
-              serviceName: HttpProxy.name,
               timestamp: new Date().toISOString(),
             });
           } else {
@@ -88,7 +87,6 @@ export class HttpProxy implements OnModuleDestroy {
               url: req.url,
               headers: req.headers,
               body: "",
-              serviceName: HttpProxy.name,
               timestamp: new Date().toISOString(),
             });
           }
@@ -101,7 +99,6 @@ export class HttpProxy implements OnModuleDestroy {
       this.inspectService.logError({
         error: err.message,
         stack: err.stack,
-        serviceName: HttpProxy.name,
         timestamp: new Date().toISOString(),
       });
 
@@ -145,7 +142,6 @@ export class HttpProxy implements OnModuleDestroy {
           statusCode,
           headers: proxyRes.headers,
           body: responseBody,
-          serviceName: HttpProxy.name,
           timestamp: new Date().toISOString(),
         });
       });

@@ -129,7 +129,7 @@ class SSEMessage extends HTMLElement {
      */
     setMessage(content, time) {
         // 保存消息数据用于弹窗
-        this.messageData = { content, time };
+        this.messageData = { type: content.type, content, time };
         const timeEl = this.shadowRoot.querySelector('.message-time');
         const contentEl = this.shadowRoot.querySelector('.message-content');
         const messageEl = this.shadowRoot.querySelector('.message');

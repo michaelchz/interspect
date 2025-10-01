@@ -93,7 +93,6 @@ export class WebSocketGateway implements OnModuleDestroy {
             direction: "client-to-server",
             body: messageData,
             isBinary,
-            serviceName: "WebSocketGateway",
             timestamp: new Date().toISOString(),
           });
 
@@ -136,7 +135,6 @@ export class WebSocketGateway implements OnModuleDestroy {
             direction: "server-to-client",
             body: messageData,
             isBinary,
-            serviceName: "WebSocketGateway",
             timestamp: new Date().toISOString(),
           });
 
