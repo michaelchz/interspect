@@ -171,12 +171,6 @@ export class InspectService {
 
     // 控制台日志
     this.logger.log(`📥 Request: ${log.method} ${log.url}`);
-    this.logger.debug(`Request Headers: ${JSON.stringify(log.headers)}`);
-
-    // 记录请求体内容（调试级别）
-    if (processedBody) {
-      this.logger.debug(`Request Body: ${processedBody}`);
-    }
 
     // SSE 广播
     if (this.sseService.hasClients()) {
@@ -208,12 +202,10 @@ export class InspectService {
     const processedBody = this.processHttpBody(log.body, log.headers);
 
     // 控制台日志
+    const lengthMsg = log.headers['content-length'] ? ` (${log.headers['content-length']} bytes)` : '';
     this.logger[log.statusCode >= 400 ? "warn" : "debug"](
-      `${statusIcon} Response: ${log.method} ${log.url} -> ${log.statusCode}`,
+      `${statusIcon} Response: ${log.method} ${log.url} -> ${log.statusCode}${lengthMsg}`,
     );
-
-    // 记录响应体内容（调试级别）
-    this.logger.debug(`服务器响应内容 (${log.statusCode}): ${processedBody}`);
 
     // SSE 广播
     if (this.sseService.hasClients()) {
@@ -281,11 +273,6 @@ export class InspectService {
     this.logger.debug(
       `🔌 WebSocket ${direction}: ${dataType} (${bodyLength} bytes)`,
     );
-
-    // 记录消息内容（调试级别）
-    if (!log.isBinary && processedBody.length > 0) {
-      this.logger.debug(`WebSocket ${direction} 内容: ${processedBody}`);
-    }
 
     // SSE 广播
     if (this.sseService.hasClients()) {
