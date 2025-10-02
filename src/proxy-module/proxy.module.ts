@@ -1,10 +1,10 @@
-import { Module, Logger, OnModuleDestroy } from "@nestjs/common";
-import { ConfigModule } from "@nestjs/config";
-import { HttpProxy } from "./services/http.proxy";
-import { WebSocketGateway } from "./services/websocket.gateway";
-import { InspectModule } from "../inspect-module/inspect.module";
-import * as http from "http";
-import * as https from "https";
+import { Module, Logger, OnModuleDestroy } from '@nestjs/common';
+import { ConfigModule } from '@nestjs/config';
+import { HttpProxy } from './services/http.proxy';
+import { WebSocketGateway } from './services/websocket.gateway';
+import { InspectModule } from '../inspect-module/inspect.module';
+import * as http from 'http';
+import * as https from 'https';
 
 // Agents for HttpProxy
 const httpProxyHttpAgent = new http.Agent({
@@ -28,11 +28,11 @@ const httpProxyHttpsAgent = new https.Agent({
     WebSocketGateway,
     Logger,
     {
-      provide: "STATIC_HTTP_AGENT",
+      provide: 'STATIC_HTTP_AGENT',
       useValue: httpProxyHttpAgent,
     },
     {
-      provide: "STATIC_HTTPS_AGENT",
+      provide: 'STATIC_HTTPS_AGENT',
       useValue: httpProxyHttpsAgent,
     },
   ],

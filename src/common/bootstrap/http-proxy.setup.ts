@@ -1,5 +1,5 @@
 import { INestApplication } from '@nestjs/common';
-import type { Request, Response } from 'express';
+import type { Request, Response, NextFunction } from 'express';
 import { HttpProxy } from '../../proxy-module/services/http.proxy';
 
 /**
@@ -10,7 +10,7 @@ export const setupHttpProxy = (app: INestApplication): void => {
   const httpProxy = app.get<HttpProxy>(HttpProxy);
 
   // 处理所有请求，排除 /interspect 路径
-  app.use((req: Request, res: Response, next: Function) => {
+  app.use((req: Request, res: Response, next: NextFunction): void => {
     if (req.path.startsWith('/interspect')) {
       // 跳过 /interspect 路径，让其他中间件处理
       next();

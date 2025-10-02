@@ -8,10 +8,7 @@ import { join } from 'path';
  */
 export const setupStaticAssets = (app: INestApplication): void => {
   // 注册静态文件服务
-  app.use(
-    '/interspect/web',
-    express.static(join(__dirname, '..', '..', '..', 'public')),
-  );
+  app.use('/interspect/web', express.static(join(__dirname, '..', '..', '..', 'public')));
 
   // 添加 /interspect 重定向到 /interspect/web/
   app.use('/interspect', (req: Request, res: Response, next: NextFunction) => {

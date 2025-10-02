@@ -1,5 +1,5 @@
-import { Injectable, Logger, OnModuleDestroy } from "@nestjs/common";
-import type { Request, Response } from "express";
+import { Injectable, Logger, OnModuleDestroy } from '@nestjs/common';
+import type { Request, Response } from 'express';
 
 export interface SseClient {
   id: string;
@@ -22,23 +22,21 @@ export class SseService implements OnModuleDestroy {
     // 发送连接确认
     try {
       if (!response.writableEnded) {
-        response.write(":connected\n\n");
+        response.write(':connected\n\n');
       }
     } catch (error) {
-      this.logger.error("Failed to send connected message:", error);
+      this.logger.error('Failed to send connected message:', error);
     }
 
     // 启动心跳
     this.startHeartbeat(client);
 
     // 设置连接关闭处理
-    request.on("close", () => {
+    request.on('close', () => {
       this.removeClient(id);
     });
 
-    this.logger.log(
-      `SSE client connected: ${id}, total clients: ${this.clients.size}`,
-    );
+    this.logger.log(`SSE client connected: ${id}, total clients: ${this.clients.size}`);
   }
 
   /**
@@ -53,17 +51,14 @@ export class SseService implements OnModuleDestroy {
 
       try {
         const heartbeatData = {
-          type: "heartbeat",
-          message: "heartbeat",
+          type: 'heartbeat',
+          message: 'heartbeat',
           timestamp: new Date().toISOString(),
         };
         const message = `data: ${JSON.stringify(heartbeatData)}\n\n`;
         client.response.write(message);
       } catch (error) {
-        this.logger.error(
-          `Failed to send heartbeat to client ${client.id}:`,
-          error,
-        );
+        this.logger.error(`Failed to send heartbeat to client ${client.id}:`, error);
         this.removeClient(client.id);
       }
     }, 7000); // 7秒
@@ -86,9 +81,7 @@ export class SseService implements OnModuleDestroy {
       }
 
       this.clients.delete(id);
-      this.logger.log(
-        `SSE client disconnected: ${id}, total clients: ${this.clients.size}`,
-      );
+      this.logger.log(`SSE client disconnected: ${id}, total clients: ${this.clients.size}`);
     }
   }
 
@@ -128,7 +121,7 @@ export class SseService implements OnModuleDestroy {
    * 模块销毁时清理所有连接
    */
   onModuleDestroy(): void {
-    this.logger.log("Cleaning up all SSE connections...");
+    this.logger.log('Cleaning up all SSE connections...');
 
     for (const [id, client] of this.clients.entries()) {
       // 清理心跳定时器
@@ -141,10 +134,10 @@ export class SseService implements OnModuleDestroy {
         if (!client.response.writableEnded) {
           client.response.write(
             `data: ${JSON.stringify({
-              type: "shutdown",
-              message: "Server is shutting down",
+              type: 'shutdown',
+              message: 'Server is shutting down',
               timestamp: new Date().toISOString(),
-            })}\n\n`,
+            })}\n\n`
           );
           client.response.end();
         }
@@ -154,6 +147,6 @@ export class SseService implements OnModuleDestroy {
     }
 
     this.clients.clear();
-    this.logger.log("All SSE connections cleaned up");
+    this.logger.log('All SSE connections cleaned up');
   }
 }

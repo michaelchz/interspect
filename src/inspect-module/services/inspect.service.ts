@@ -1,8 +1,8 @@
-import { Injectable, Logger } from "@nestjs/common";
-import { SseService } from "./sse.service";
-import * as zlib from "zlib";
-import { IncomingHttpHeaders } from "http";
-import { RawData } from "ws";
+import { Injectable, Logger } from '@nestjs/common';
+import { SseService } from './sse.service';
+import * as zlib from 'zlib';
+import { IncomingHttpHeaders } from 'http';
+import { RawData } from 'ws';
 
 // 日志数据接口
 interface RequestLog {
@@ -11,7 +11,7 @@ interface RequestLog {
   headers: IncomingHttpHeaders;
   body: string | Buffer | undefined;
   timestamp: string;
-  entryType: "request";
+  entryType: 'request';
 }
 
 interface ResponseLog {
@@ -21,22 +21,22 @@ interface ResponseLog {
   headers: IncomingHttpHeaders;
   body: string | Buffer | undefined;
   timestamp: string;
-  entryType: "response";
+  entryType: 'response';
 }
 
 interface ErrorLog {
   error: string;
   stack?: string;
   timestamp: string;
-  entryType: "error";
+  entryType: 'error';
 }
 
 interface WebSocketLog {
-  direction: "client-to-server" | "server-to-client";
+  direction: 'client-to-server' | 'server-to-client';
   body: RawData | string; // RawData + string
   isBinary: boolean;
   timestamp: string;
-  entryType: "websocket";
+  entryType: 'websocket';
 }
 
 @Injectable()
@@ -50,27 +50,27 @@ export class InspectService {
    */
   private processWebSocketMessage(data: RawData | string, isBinary: boolean): string {
     if (isBinary) {
-      return "◆◇[BINARY_DATA]◇◆";
+      return '◆◇[BINARY_DATA]◇◆';
     }
 
-    if (typeof data === "string") {
+    if (typeof data === 'string') {
       return data;
     }
 
     if (data instanceof Buffer) {
-      return data.toString("utf8");
+      return data.toString('utf8');
     }
 
     if (data instanceof ArrayBuffer) {
-      return Buffer.from(data).toString("utf8");
+      return Buffer.from(data).toString('utf8');
     }
 
     // 处理Buffer数组
     if (Array.isArray(data)) {
-      return Buffer.concat(data).toString("utf8");
+      return Buffer.concat(data).toString('utf8');
     }
 
-    return "[unknown data type]";
+    return '[unknown data type]';
   }
 
   /**
@@ -78,32 +78,34 @@ export class InspectService {
    */
   private processHttpBody(
     body: string | Buffer | undefined,
-    headers: IncomingHttpHeaders,
+    headers: IncomingHttpHeaders
   ): string | undefined {
     if (!body) return undefined;
 
     // 获取 Content-Type 和 Content-Encoding
     const contentType = (
-      (headers["content-type"] as string) ||
-      (headers["Content-Type"] as string) ||
-      ""
+      (headers['content-type'] as string) ||
+      (headers['Content-Type'] as string) ||
+      ''
     ).toLowerCase();
     const contentEncoding = (
-      (headers["content-encoding"] as string) ||
-      (headers["Content-Encoding"] as string) ||
-      ""
+      (headers['content-encoding'] as string) ||
+      (headers['Content-Encoding'] as string) ||
+      ''
     ).toLowerCase();
 
     // 如果是 Buffer，按标准流程处理
     if (Buffer.isBuffer(body)) {
       // 步骤 1: 根据 Content-Type 判断是否为二进制数据
       // 如果是二进制类型，跳过解压缩，直接返回标识
-      if (!contentType.includes("text/") &&
-          !contentType.includes("application/json") &&
-          !contentType.includes("application/xml") &&
-          !contentType.includes("application/javascript") &&
-          !contentType.includes("application/x-javascript") &&
-          !contentType.includes("application/x-www-form-urlencoded")) {
+      if (
+        !contentType.includes('text/') &&
+        !contentType.includes('application/json') &&
+        !contentType.includes('application/xml') &&
+        !contentType.includes('application/javascript') &&
+        !contentType.includes('application/x-javascript') &&
+        !contentType.includes('application/x-www-form-urlencoded')
+      ) {
         // 二进制类型，跳过解压缩直接返回
         return `◆◇[BINARY_DATA:${body.length}bytes]◇◆`;
       }
@@ -111,42 +113,42 @@ export class InspectService {
       // 步骤 2: 只有文本数据才进行解压缩
       let decodedBody: Buffer = body;
 
-      if (contentEncoding === "gzip") {
+      if (contentEncoding === 'gzip') {
         try {
           decodedBody = zlib.gunzipSync(body);
         } catch (error) {
           Logger.warn(
-            `解压缩失败 (gzip): ${error instanceof Error ? error.message : "未知错误"}`,
-            "InspectService",
+            `解压缩失败 (gzip): ${error instanceof Error ? error.message : '未知错误'}`,
+            'InspectService'
           );
           return `[压缩数据解压失败] (${body.length} bytes)`;
         }
-      } else if (contentEncoding === "deflate") {
+      } else if (contentEncoding === 'deflate') {
         try {
           decodedBody = zlib.inflateSync(body);
         } catch (error) {
           Logger.warn(
-            `解压缩失败 (deflate): ${error instanceof Error ? error.message : "未知错误"}`,
-            "InspectService",
+            `解压缩失败 (deflate): ${error instanceof Error ? error.message : '未知错误'}`,
+            'InspectService'
           );
           return `[压缩数据解压失败] (${body.length} bytes)`;
         }
-      } else if (contentEncoding === "br") {
+      } else if (contentEncoding === 'br') {
         try {
           decodedBody = zlib.brotliDecompressSync(body);
         } catch (error) {
           Logger.warn(
-            `解压缩失败 (brotli): ${error instanceof Error ? error.message : "未知错误"}`,
-            "InspectService",
+            `解压缩失败 (brotli): ${error instanceof Error ? error.message : '未知错误'}`,
+            'InspectService'
           );
           return `[压缩数据解压失败] (${body.length} bytes)`;
         }
       }
 
       // 步骤 3: 处理文本内容
-      if (contentType.includes("application/json")) {
+      if (contentType.includes('application/json')) {
         try {
-          const text = decodedBody.toString("utf8");
+          const text = decodedBody.toString('utf8');
           JSON.parse(text); // 验证 JSON
           return text;
         } catch {
@@ -154,7 +156,7 @@ export class InspectService {
         }
       } else {
         // 其他文本类型
-        return decodedBody.toString("utf8");
+        return decodedBody.toString('utf8');
       }
     }
 
@@ -165,7 +167,7 @@ export class InspectService {
   /**
    * 记录请求日志
    */
-  logRequest(log: Omit<RequestLog, "entryType">): void {
+  logRequest(log: Omit<RequestLog, 'entryType'>): void {
     // 处理请求体（解压缩和文本检测）
     const processedBody = this.processHttpBody(log.body, log.headers);
 
@@ -178,13 +180,13 @@ export class InspectService {
       const broadcastLog = {
         ...log,
         body: processedBody,
-        entryType: "request" as const,
+        entryType: 'request' as const,
       };
 
       this.sseService.broadcast({
-        type: "request",
+        type: 'request',
         data: broadcastLog,
-        icon: "📥",
+        icon: '📥',
         message: `Request: ${log.method} ${log.url}`,
         timestamp: log.timestamp,
       });
@@ -194,17 +196,18 @@ export class InspectService {
   /**
    * 记录响应日志
    */
-  logResponse(log: Omit<ResponseLog, "entryType">): void {
-    const statusIcon =
-      log.statusCode >= 400 ? "❌" : log.statusCode >= 300 ? "🔄" : "✅";
+  logResponse(log: Omit<ResponseLog, 'entryType'>): void {
+    const statusIcon = log.statusCode >= 400 ? '❌' : log.statusCode >= 300 ? '🔄' : '✅';
 
     // 处理响应体（使用标准流程）
     const processedBody = this.processHttpBody(log.body, log.headers);
 
     // 控制台日志
-    const lengthMsg = log.headers['content-length'] ? ` (${log.headers['content-length']} bytes)` : '';
-    this.logger[log.statusCode >= 400 ? "warn" : "debug"](
-      `${statusIcon} Response: ${log.method} ${log.url} -> ${log.statusCode}${lengthMsg}`,
+    const lengthMsg = log.headers['content-length']
+      ? ` (${log.headers['content-length']} bytes)`
+      : '';
+    this.logger[log.statusCode >= 400 ? 'warn' : 'debug'](
+      `${statusIcon} Response: ${log.method} ${log.url} -> ${log.statusCode}${lengthMsg}`
     );
 
     // SSE 广播
@@ -213,11 +216,11 @@ export class InspectService {
       const broadcastLog = {
         ...log,
         body: processedBody,
-        entryType: "response" as const,
+        entryType: 'response' as const,
       };
 
       this.sseService.broadcast({
-        type: "response",
+        type: 'response',
         data: broadcastLog,
         icon: statusIcon,
         message: `Response: ${log.method} ${log.url} -> ${log.statusCode}`,
@@ -229,19 +232,19 @@ export class InspectService {
   /**
    * 记录错误日志
    */
-  logError(log: Omit<ErrorLog, "entryType">): void {
+  logError(log: Omit<ErrorLog, 'entryType'>): void {
     // 控制台日志
     this.logger.error(`Proxy error: ${log.error}`, log.stack);
 
     // SSE 广播
     if (this.sseService.hasClients()) {
       this.sseService.broadcast({
-        type: "error",
+        type: 'error',
         data: {
           ...log,
-          entryType: "error" as const,
+          entryType: 'error' as const,
         },
-        icon: "💥",
+        icon: '💥',
         message: `Proxy error: ${log.error}`,
         timestamp: log.timestamp,
       });
@@ -251,9 +254,9 @@ export class InspectService {
   /**
    * 记录 WebSocket 消息日志
    */
-  logWebSocketMessage(log: Omit<WebSocketLog, "entryType">): void {
-    const direction = log.direction === "client-to-server" ? "→" : "←";
-    const dataType = log.isBinary ? "BINARY" : "TEXT";
+  logWebSocketMessage(log: Omit<WebSocketLog, 'entryType'>): void {
+    const direction = log.direction === 'client-to-server' ? '→' : '←';
+    const dataType = log.isBinary ? 'BINARY' : 'TEXT';
 
     // 处理消息数据
     const processedBody = this.processWebSocketMessage(log.body, log.isBinary);
@@ -270,20 +273,18 @@ export class InspectService {
     }
 
     // 控制台日志
-    this.logger.debug(
-      `🔌 WebSocket ${direction}: ${dataType} (${bodyLength} bytes)`,
-    );
+    this.logger.debug(`🔌 WebSocket ${direction}: ${dataType} (${bodyLength} bytes)`);
 
     // SSE 广播
     if (this.sseService.hasClients()) {
       this.sseService.broadcast({
-        type: "websocket",
+        type: 'websocket',
         data: {
           ...log,
           body: processedBody,
-          entryType: "websocket" as const,
+          entryType: 'websocket' as const,
         },
-        icon: "🔌",
+        icon: '🔌',
         message: `WebSocket ${direction}: ${dataType} (${bodyLength} bytes)`,
         timestamp: log.timestamp,
       });

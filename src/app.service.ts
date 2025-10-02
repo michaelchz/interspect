@@ -1,9 +1,9 @@
-import { Injectable, Logger } from "@nestjs/common";
-import { ConfigService } from "@nestjs/config";
-import { ProxyMetricsService } from "./inspect-module/services/proxy-metrics.service";
-import { AgentMetricsService } from "./inspect-module/services/agent-metrics.service";
-import { SseService } from "./inspect-module/services/sse.service";
-import type { Request, Response } from "express";
+import { Injectable, Logger } from '@nestjs/common';
+import { ConfigService } from '@nestjs/config';
+import { ProxyMetricsService } from './inspect-module/services/proxy-metrics.service';
+import { AgentMetricsService } from './inspect-module/services/agent-metrics.service';
+import { SseService } from './inspect-module/services/sse.service';
+import type { Request, Response } from 'express';
 
 @Injectable()
 export class AppService {
@@ -13,15 +13,15 @@ export class AppService {
     private readonly configService: ConfigService,
     private readonly proxyMetricsService: ProxyMetricsService,
     private readonly agentMetricsService: AgentMetricsService,
-    private readonly sseService: SseService,
+    private readonly sseService: SseService
   ) {}
 
   /**
    * 应用初始化方法，在模块启动时调用
    */
   initialize(): void {
-    this.logger.log("Initializing server...");
-    this.logger.log("Application started successfully!");
+    this.logger.log('Initializing server...');
+    this.logger.log('Application started successfully!');
   }
 
   /**
@@ -36,12 +36,12 @@ export class AppService {
    */
   getStatus() {
     return {
-      status: "ok",
-      message: "Inspect module is running",
+      status: 'ok',
+      message: 'Inspect module is running',
       timestamp: new Date().toISOString(),
       endpoints: {
-        sse: "/interspect/sse",
-        metrics: "/interspect/metrics",
+        sse: '/interspect/sse',
+        metrics: '/interspect/metrics',
       },
     };
   }

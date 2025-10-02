@@ -1,8 +1,8 @@
-import { Module } from "@nestjs/common";
-import { InspectService } from "./services/inspect.service";
-import { SseService } from "./services/sse.service";
-import { ProxyMetricsService } from "./services/proxy-metrics.service";
-import { AgentMetricsService } from "./services/agent-metrics.service";
+import { Module } from '@nestjs/common';
+import { InspectService } from './services/inspect.service';
+import { SseService } from './services/sse.service';
+import { ProxyMetricsService } from './services/proxy-metrics.service';
+import { AgentMetricsService } from './services/agent-metrics.service';
 
 @Module({
   controllers: [],

@@ -1,4 +1,4 @@
-import { Injectable } from "@nestjs/common";
+import { Injectable } from '@nestjs/common';
 
 @Injectable()
 export class ProxyMetricsService {
@@ -76,10 +76,7 @@ export class ProxyMetricsService {
   }
 
   decrementClientConnections(): void {
-    this.currentClientConnections = Math.max(
-      0,
-      this.currentClientConnections - 1,
-    );
+    this.currentClientConnections = Math.max(0, this.currentClientConnections - 1);
   }
 
   incrementServerConnections(): void {
@@ -87,10 +84,7 @@ export class ProxyMetricsService {
   }
 
   decrementServerConnections(): void {
-    this.currentServerConnections = Math.max(
-      0,
-      this.currentServerConnections - 1,
-    );
+    this.currentServerConnections = Math.max(0, this.currentServerConnections - 1);
   }
 
   incrementClientMessagesSent(): void {

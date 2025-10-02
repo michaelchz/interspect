@@ -1,12 +1,12 @@
-import { NestFactory } from "@nestjs/core";
-import { ConfigService } from "@nestjs/config";
-import { AppModule } from "./app.module";
-import { FileLogger } from "./common/utils/file-logger.service";
-import { setupApplication } from "./common/bootstrap";
+import { NestFactory } from '@nestjs/core';
+import { ConfigService } from '@nestjs/config';
+import { AppModule } from './app.module';
+import { FileLogger } from './common/utils/file-logger.service';
+import { setupApplication } from './common/bootstrap';
 
 async function bootstrap() {
   const app = await NestFactory.create(AppModule, {
-    logger: new FileLogger("./data/logs"),
+    logger: new FileLogger('./data/logs'),
     bodyParser: false, // 禁用 NestJS 全局 body parser
   });
 

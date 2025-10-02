@@ -1,7 +1,7 @@
-import { Injectable } from "@nestjs/common";
-import * as http from "http";
-import * as https from "https";
-import { Socket } from "net";
+import { Injectable } from '@nestjs/common';
+import * as http from 'http';
+import * as https from 'https';
+import { Socket } from 'net';
 
 @Injectable()
 export class AgentMetricsService {
@@ -17,9 +17,8 @@ export class AgentMetricsService {
     const countSockets = (sockets: NodeJS.ReadOnlyDict<Socket[]>) => {
       if (!sockets) return 0;
       return Object.values(sockets).reduce(
-        (count, socketsArray) =>
-          count + (socketsArray ? socketsArray.length : 0),
-        0,
+        (count, socketsArray) => count + (socketsArray ? socketsArray.length : 0),
+        0
       );
     };
 

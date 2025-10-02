@@ -1,11 +1,11 @@
-import { Injectable, Logger, OnModuleDestroy } from "@nestjs/common";
-import { ConfigService } from "@nestjs/config";
-import { WebSocket as WSWebSocket } from "ws";
-import { Server as WSServer } from "ws";
-import { IncomingMessage } from "http";
-import { InspectService } from "../../inspect-module/services/inspect.service";
-import { ProxyMetricsService } from "../../inspect-module/services/proxy-metrics.service";
-import * as http from "http";
+import { Injectable, Logger, OnModuleDestroy } from '@nestjs/common';
+import { ConfigService } from '@nestjs/config';
+import { WebSocket as WSWebSocket } from 'ws';
+import { Server as WSServer } from 'ws';
+import { IncomingMessage } from 'http';
+import { InspectService } from '../../inspect-module/services/inspect.service';
+import { ProxyMetricsService } from '../../inspect-module/services/proxy-metrics.service';
+import * as http from 'http';
 
 @Injectable()
 export class WebSocketGateway implements OnModuleDestroy {
@@ -18,7 +18,7 @@ export class WebSocketGateway implements OnModuleDestroy {
   constructor(
     private readonly configService: ConfigService,
     private readonly inspectService: InspectService,
-    private readonly metricsService: ProxyMetricsService,
+    private readonly metricsService: ProxyMetricsService
   ) {}
 
   /**
@@ -27,15 +27,12 @@ export class WebSocketGateway implements OnModuleDestroy {
   initialize(server: http.Server) {
     this.server = new WSServer({ server });
 
-    this.server.on(
-      "connection",
-      (client: WSWebSocket, request: IncomingMessage) => {
-        this.handleConnection(client, request);
-      },
-    );
+    this.server.on('connection', (client: WSWebSocket, request: IncomingMessage) => {
+      this.handleConnection(client, request);
+    });
 
-    this.server.on("error", (error) => {
-      this.logger.error("WebSocket 服务器错误:", error);
+    this.server.on('error', (error) => {
+      this.logger.error('WebSocket 服务器错误:', error);
     });
   }
 
@@ -46,7 +43,7 @@ export class WebSocketGateway implements OnModuleDestroy {
     this.logger.log(`新的 WebSocket 连接: ${request.socket.remoteAddress}`);
 
     // 获取客户端请求的路径
-    const requestPath = request.url || "/";
+    const requestPath = request.url || '/';
     this.logger.log(`客户端请求路径: ${requestPath}`);
 
     // 构建完整的 WebSocket URL，包含原始请求路径
@@ -54,10 +51,7 @@ export class WebSocketGateway implements OnModuleDestroy {
     if (!targetServerUrl) {
       throw new Error('TARGET_SERVER_URL 环境变量未配置');
     }
-    const targetUrl = new URL(
-      requestPath,
-      targetServerUrl.replace(/^http/, "ws"),
-    ).href;
+    const targetUrl = new URL(requestPath, targetServerUrl.replace(/^http/, 'ws')).href;
 
     this.logger.log(`连接到目标服务器: ${targetUrl}`);
 
@@ -74,13 +68,13 @@ export class WebSocketGateway implements OnModuleDestroy {
       this.metricsService.incrementServerConnections();
 
       // 代理：客户端 → 服务器
-      client.on("message", (data, isBinary) => {
+      client.on('message', (data, isBinary) => {
         if (serverSocket.readyState === WSWebSocket.OPEN) {
           const startTime = Date.now();
 
           // 使用 InspectService 记录
           this.inspectService.logWebSocketMessage({
-            direction: "client-to-server",
+            direction: 'client-to-server',
             body: data,
             isBinary,
             timestamp: new Date().toISOString(),
@@ -93,7 +87,7 @@ export class WebSocketGateway implements OnModuleDestroy {
           // 根据原始消息类型发送
           if (!isBinary && data instanceof Buffer) {
             // 原始是文本帧，但 ws 给了 Buffer，需要转回字符串
-            serverSocket.send(data.toString("utf8"));
+            serverSocket.send(data.toString('utf8'));
           } else {
             // 保持二进制数据
             serverSocket.send(data, { binary: isBinary });
@@ -106,13 +100,13 @@ export class WebSocketGateway implements OnModuleDestroy {
       });
 
       // 代理：服务器 → 客户端
-      serverSocket.on("message", (data, isBinary) => {
+      serverSocket.on('message', (data, isBinary) => {
         if (client.readyState === WSWebSocket.OPEN) {
           const startTime = Date.now();
 
           // 使用 InspectService 记录
           this.inspectService.logWebSocketMessage({
-            direction: "server-to-client",
+            direction: 'server-to-client',
             body: data,
             isBinary,
             timestamp: new Date().toISOString(),
@@ -125,7 +119,7 @@ export class WebSocketGateway implements OnModuleDestroy {
           // 根据原始消息类型发送
           if (!isBinary && data instanceof Buffer) {
             // 原始是文本帧，但 ws 给了 Buffer，需要转回字符串
-            client.send(data.toString("utf8"));
+            client.send(data.toString('utf8'));
           } else {
             // 保持二进制数据
             client.send(data, { binary: isBinary });
@@ -138,7 +132,7 @@ export class WebSocketGateway implements OnModuleDestroy {
       });
 
       // 处理连接关闭
-      client.on("close", () => {
+      client.on('close', () => {
         this.activeConnections.delete(client);
         this.metricsService.decrementClientConnections();
         if (serverSocket.readyState === WSWebSocket.OPEN) {
@@ -146,7 +140,7 @@ export class WebSocketGateway implements OnModuleDestroy {
         }
       });
 
-      serverSocket.on("close", () => {
+      serverSocket.on('close', () => {
         this.activeServerSockets.delete(serverSocket);
         this.metricsService.decrementServerConnections();
         if (client.readyState === WSWebSocket.OPEN) {
@@ -155,23 +149,23 @@ export class WebSocketGateway implements OnModuleDestroy {
       });
 
       // 处理错误
-      client.on("error", (error) => {
-        this.logger.error("客户端错误:", error);
+      client.on('error', (error) => {
+        this.logger.error('客户端错误:', error);
         this.activeConnections.delete(client);
         this.metricsService.decrementClientConnections();
         this.metricsService.incrementClientConnectionError();
         client.close();
       });
 
-      serverSocket.on("error", (error) => {
-        this.logger.error("服务器错误:", error);
+      serverSocket.on('error', (error) => {
+        this.logger.error('服务器错误:', error);
         this.activeServerSockets.delete(serverSocket);
         this.metricsService.decrementServerConnections();
         this.metricsService.incrementServerConnectionError();
         serverSocket.close();
       });
     } catch (error) {
-      this.logger.error("创建服务器连接失败:", error);
+      this.logger.error('创建服务器连接失败:', error);
       client.close();
     }
   }
@@ -186,51 +180,51 @@ export class WebSocketGateway implements OnModuleDestroy {
     }
     this.isClosing = true;
 
-    this.logger.log("正在关闭WebSocket服务器...");
+    this.logger.log('正在关闭WebSocket服务器...');
 
     // 关闭所有客户端连接
     for (const client of this.activeConnections) {
       try {
         if (client.readyState === WSWebSocket.OPEN) {
-          client.close(1001, "Server Shutdown");
+          client.close(1001, 'Server Shutdown');
         }
       } catch (error) {
-        this.logger.error("关闭客户端连接失败:", error);
+        this.logger.error('关闭客户端连接失败:', error);
       }
     }
     this.activeConnections.clear();
-    this.metricsService["currentClientConnections"] = 0;
+    this.metricsService['currentClientConnections'] = 0;
 
     // 关闭所有服务器连接
     for (const serverSocket of this.activeServerSockets) {
       try {
         if (serverSocket.readyState === WSWebSocket.OPEN) {
-          serverSocket.close(1001, "Server Shutdown");
+          serverSocket.close(1001, 'Server Shutdown');
         }
       } catch (error) {
-        this.logger.error("关闭服务器连接失败:", error);
+        this.logger.error('关闭服务器连接失败:', error);
       }
     }
     this.activeServerSockets.clear();
-    this.metricsService["currentServerConnections"] = 0;
+    this.metricsService['currentServerConnections'] = 0;
 
     // 关闭WebSocket服务器
     if (this.server) {
       try {
         this.server.close((error) => {
           if (error) {
-            this.logger.error("关闭WebSocket服务器失败:", error);
+            this.logger.error('关闭WebSocket服务器失败:', error);
           } else {
-            this.logger.log("WebSocket服务器已关闭");
+            this.logger.log('WebSocket服务器已关闭');
           }
         });
         this.server = null;
       } catch (error) {
-        this.logger.error("关闭WebSocket服务器失败:", error);
+        this.logger.error('关闭WebSocket服务器失败:', error);
       }
     }
 
-    this.logger.log("WebSocket服务器关闭完成");
+    this.logger.log('WebSocket服务器关闭完成');
   }
 
   /**

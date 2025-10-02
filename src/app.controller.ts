@@ -1,6 +1,6 @@
-import { Controller, Get, Res, Req, Logger } from "@nestjs/common";
-import type { Request, Response } from "express";
-import { AppService } from "./app.service";
+import { Controller, Get, Res, Req, Logger } from '@nestjs/common';
+import type { Request, Response } from 'express';
+import { AppService } from './app.service';
 
 @Controller()
 export class AppController {
@@ -8,23 +8,23 @@ export class AppController {
 
   constructor(private readonly appService: AppService) {}
 
-  @Get("interspect/metrics")
+  @Get('interspect/metrics')
   getDashboardMetrics() {
     return this.appService.getDashboardMetrics();
   }
 
-  @Get("interspect/status")
+  @Get('interspect/status')
   getStatus() {
     return this.appService.getStatus();
   }
 
-  @Get("interspect/sse")
+  @Get('interspect/sse')
   sendEvents(@Res() res: Response, @Req() req: Request) {
     // 设置 SSE 相关 header
     res.set({
-      "Content-Type": "text/event-stream",
-      "Cache-Control": "no-cache",
-      Connection: "keep-alive",
+      'Content-Type': 'text/event-stream',
+      'Cache-Control': 'no-cache',
+      Connection: 'keep-alive',
     });
 
     const clientId = this.appService.generateClientId();
