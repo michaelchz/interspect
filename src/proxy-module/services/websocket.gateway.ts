@@ -1,7 +1,6 @@
 import { Injectable, Logger, OnModuleDestroy } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
-import { WebSocket as WSWebSocket } from 'ws';
-import { Server as WSServer } from 'ws';
+import { WebSocket as WSWebSocket, Server as WSServer } from 'ws';
 import { IncomingMessage } from 'http';
 import { InspectService } from '../../inspect-module/services/inspect.service';
 import { ProxyMetricsService } from '../../inspect-module/services/proxy-metrics.service';
@@ -11,8 +10,8 @@ import * as http from 'http';
 export class WebSocketGateway implements OnModuleDestroy {
   private server: WSServer | null = null;
   private readonly logger = new Logger(WebSocketGateway.name);
-  private activeConnections: Set<WSWebSocket> = new Set();
-  private activeServerSockets: Set<WSWebSocket> = new Set();
+  private readonly activeClients = new Set<WSWebSocket>();
+  private readonly activeServers = new Set<WSWebSocket>();
   private isClosing = false;
 
   constructor(
@@ -40,196 +39,158 @@ export class WebSocketGateway implements OnModuleDestroy {
    * 处理客户端连接
    */
   private handleConnection(client: WSWebSocket, request: IncomingMessage) {
-    this.logger.log(`新的 WebSocket 连接: ${request.socket.remoteAddress}`);
-
     // 获取客户端请求的路径
-    const requestPath = request.url || '/';
-    this.logger.log(`客户端请求路径: ${requestPath}`);
-
-    // 构建完整的 WebSocket URL，包含原始请求路径
-    const targetServerUrl = this.configService.get<string>('TARGET_SERVER_URL');
-    if (!targetServerUrl) {
-      throw new Error('TARGET_SERVER_URL 环境变量未配置');
-    }
-    const targetUrl = new URL(requestPath, targetServerUrl.replace(/^http/, 'ws')).href;
-
-    this.logger.log(`连接到目标服务器: ${targetUrl}`);
+    const targetUrl = this.buildTargetUrl(request.url || '/');
+    this.logger.log(`新的连接: ${request.socket.remoteAddress} → ${targetUrl}`);
 
     try {
-      // 创建服务器连接
       const serverSocket = new WSWebSocket(targetUrl);
 
-      // 跟踪连接
-      this.activeConnections.add(client);
-      this.activeServerSockets.add(serverSocket);
+      this.trackConnection(client, serverSocket);
 
-      // 记录连接统计
-      this.metricsService.incrementClientConnections();
-      this.metricsService.incrementServerConnections();
+      // 代理消息：客户端 <-> 服务端
+      this.proxyMessages(client, serverSocket, 'client-to-server');
+      this.proxyMessages(serverSocket, client, 'server-to-client');
 
-      // 代理：客户端 → 服务器
-      client.on('message', (data, isBinary) => {
-        if (serverSocket.readyState === WSWebSocket.OPEN) {
-          const startTime = Date.now();
-
-          // 使用 InspectService 记录
-          this.inspectService.logWebSocketMessage({
-            direction: 'client-to-server',
-            body: data,
-            isBinary,
-            timestamp: new Date().toISOString(),
-          });
-
-          // 记录消息统计
-          this.metricsService.incrementClientMessagesSent();
-          this.metricsService.incrementServerMessagesReceived();
-
-          // 根据原始消息类型发送
-          if (!isBinary && data instanceof Buffer) {
-            // 原始是文本帧，但 ws 给了 Buffer，需要转回字符串
-            serverSocket.send(data.toString('utf8'));
-          } else {
-            // 保持二进制数据
-            serverSocket.send(data, { binary: isBinary });
-          }
-
-          // 记录处理时间
-          const processingTime = Date.now() - startTime;
-          this.metricsService.addMessageProcessingTime(processingTime);
-        }
-      });
-
-      // 代理：服务器 → 客户端
-      serverSocket.on('message', (data, isBinary) => {
-        if (client.readyState === WSWebSocket.OPEN) {
-          const startTime = Date.now();
-
-          // 使用 InspectService 记录
-          this.inspectService.logWebSocketMessage({
-            direction: 'server-to-client',
-            body: data,
-            isBinary,
-            timestamp: new Date().toISOString(),
-          });
-
-          // 记录消息统计
-          this.metricsService.incrementServerMessagesSent();
-          this.metricsService.incrementClientMessagesReceived();
-
-          // 根据原始消息类型发送
-          if (!isBinary && data instanceof Buffer) {
-            // 原始是文本帧，但 ws 给了 Buffer，需要转回字符串
-            client.send(data.toString('utf8'));
-          } else {
-            // 保持二进制数据
-            client.send(data, { binary: isBinary });
-          }
-
-          // 记录处理时间
-          const processingTime = Date.now() - startTime;
-          this.metricsService.addMessageProcessingTime(processingTime);
-        }
-      });
-
-      // 处理连接关闭
-      client.on('close', () => {
-        this.activeConnections.delete(client);
-        this.metricsService.decrementClientConnections();
-        if (serverSocket.readyState === WSWebSocket.OPEN) {
-          serverSocket.close();
-        }
-      });
-
-      serverSocket.on('close', () => {
-        this.activeServerSockets.delete(serverSocket);
-        this.metricsService.decrementServerConnections();
-        if (client.readyState === WSWebSocket.OPEN) {
-          client.close();
-        }
-      });
-
-      // 处理错误
-      client.on('error', (error) => {
-        this.logger.error('客户端错误:', error);
-        this.activeConnections.delete(client);
-        this.metricsService.decrementClientConnections();
-        this.metricsService.incrementClientConnectionError();
-        client.close();
-      });
-
-      serverSocket.on('error', (error) => {
-        this.logger.error('服务器错误:', error);
-        this.activeServerSockets.delete(serverSocket);
-        this.metricsService.decrementServerConnections();
-        this.metricsService.incrementServerConnectionError();
-        serverSocket.close();
-      });
-    } catch (error) {
-      this.logger.error('创建服务器连接失败:', error);
+      // 处理关闭与错误
+      this.setupCloseHandler(client, serverSocket, 'client');
+      this.setupCloseHandler(serverSocket, client, 'server');
+      this.setupErrorHandler(client, 'client');
+      this.setupErrorHandler(serverSocket, 'server');
+    } catch (err) {
+      this.logger.error('连接目标服务器失败:', err);
       client.close();
     }
+  }
+
+  /** 构建目标服务器 WebSocket 地址 */
+  private buildTargetUrl(requestPath: string): string {
+    const baseUrl = this.configService.get<string>('TARGET_SERVER_URL');
+    if (!baseUrl) throw new Error('缺少配置: TARGET_SERVER_URL');
+    return new URL(requestPath, baseUrl.replace(/^http/, 'ws')).href;
+  }
+
+  /** 跟踪新连接并更新指标 */
+  private trackConnection(client: WSWebSocket, serverSocket: WSWebSocket) {
+    this.activeClients.add(client);
+    this.activeServers.add(serverSocket);
+    this.metricsService.incrementClientConnections();
+    this.metricsService.incrementServerConnections();
+  }
+
+  /** 代理消息流转 */
+  private proxyMessages(
+    source: WSWebSocket,
+    target: WSWebSocket,
+    direction: 'client-to-server' | 'server-to-client'
+  ) {
+    source.on('message', (data, isBinary) => {
+      if (target.readyState !== WSWebSocket.OPEN) return;
+
+      const start = Date.now();
+      // 使用 InspectService 记录
+      this.inspectService.logWebSocketMessage({
+        direction,
+        body: data,
+        isBinary,
+        timestamp: new Date().toISOString(),
+      });
+
+      if (!isBinary && data instanceof Buffer) {
+        target.send(data.toString('utf8'));
+      } else {
+        target.send(data, { binary: isBinary });
+      }
+
+      this.updateMetrics(direction);
+      this.metricsService.addMessageProcessingTime(Date.now() - start);
+    });
+  }
+
+  /** 更新消息指标 */
+  private updateMetrics(direction: 'client-to-server' | 'server-to-client') {
+    if (direction === 'client-to-server') {
+      this.metricsService.incrementClientMessagesSent();
+      this.metricsService.incrementServerMessagesReceived();
+    } else {
+      this.metricsService.incrementServerMessagesSent();
+      this.metricsService.incrementClientMessagesReceived();
+    }
+  }
+
+  /** 处理连接关闭 */
+  private setupCloseHandler(source: WSWebSocket, target: WSWebSocket, type: 'client' | 'server') {
+    source.on('close', () => {
+      if (type === 'client') {
+        this.activeClients.delete(source);
+        this.metricsService.decrementClientConnections();
+      } else {
+        this.activeServers.delete(source);
+        this.metricsService.decrementServerConnections();
+      }
+
+      if (target.readyState === WSWebSocket.OPEN) {
+        target.close();
+      }
+    });
+  }
+
+  /** 处理错误 */
+  private setupErrorHandler(socket: WSWebSocket, type: 'client' | 'server') {
+    socket.on('error', (err) => {
+      this.logger.error(`${type} 连接错误:`, err);
+
+      if (type === 'client') {
+        this.activeClients.delete(socket);
+        this.metricsService.decrementClientConnections();
+        this.metricsService.incrementClientConnectionError();
+      } else {
+        this.activeServers.delete(socket);
+        this.metricsService.decrementServerConnections();
+        this.metricsService.incrementServerConnectionError();
+      }
+
+      socket.close();
+    });
   }
 
   /**
    * 关闭WebSocket服务器和所有连接
    */
   close() {
-    // 防止重复关闭
-    if (this.isClosing) {
-      return;
-    }
+    if (this.isClosing) return;
     this.isClosing = true;
+    this.logger.log('正在关闭 WebSocket 服务器...');
 
-    this.logger.log('正在关闭WebSocket服务器...');
+    this.shutdownConnections(this.activeClients, 'client');
+    this.shutdownConnections(this.activeServers, 'server');
 
-    // 关闭所有客户端连接
-    for (const client of this.activeConnections) {
-      try {
-        if (client.readyState === WSWebSocket.OPEN) {
-          client.close(1001, 'Server Shutdown');
-        }
-      } catch (error) {
-        this.logger.error('关闭客户端连接失败:', error);
-      }
-    }
-    this.activeConnections.clear();
-    this.metricsService['currentClientConnections'] = 0;
-
-    // 关闭所有服务器连接
-    for (const serverSocket of this.activeServerSockets) {
-      try {
-        if (serverSocket.readyState === WSWebSocket.OPEN) {
-          serverSocket.close(1001, 'Server Shutdown');
-        }
-      } catch (error) {
-        this.logger.error('关闭服务器连接失败:', error);
-      }
-    }
-    this.activeServerSockets.clear();
-    this.metricsService['currentServerConnections'] = 0;
-
-    // 关闭WebSocket服务器
     if (this.server) {
-      try {
-        this.server.close((error) => {
-          if (error) {
-            this.logger.error('关闭WebSocket服务器失败:', error);
-          } else {
-            this.logger.log('WebSocket服务器已关闭');
-          }
-        });
-        this.server = null;
-      } catch (error) {
-        this.logger.error('关闭WebSocket服务器失败:', error);
-      }
+      this.server.close((err) => {
+        if (err) this.logger.error('关闭 WebSocket 服务器失败:', err);
+        else this.logger.log('WebSocket 服务器已关闭');
+      });
+      this.server = null;
     }
-
-    this.logger.log('WebSocket服务器关闭完成');
   }
 
-  /**
-   * 实现OnModuleDestroy接口
-   */
+  /** 关闭所有连接并更新指标 */
+  private shutdownConnections(conns: Set<WSWebSocket>, type: 'client' | 'server') {
+    for (const socket of conns) {
+      try {
+        if (socket.readyState === WSWebSocket.OPEN) socket.close(1001, 'Server Shutdown');
+      } catch (err) {
+        this.logger.error(`关闭 ${type} 连接失败:`, err);
+      }
+    }
+    conns.clear();
+    if (type === 'client') {
+      this.metricsService['currentClientConnections'] = 0;
+    } else {
+      this.metricsService['currentServerConnections'] = 0;
+    }
+  }
+
   onModuleDestroy() {
     this.close();
   }
