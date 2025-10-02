@@ -139,9 +139,9 @@ DELETE /api/*  -> 代理到目标服务器
 ### 监控端点
 
 ```bash
-GET  /metrics          # 获取性能指标
-GET  /inspect/sse      # SSE 实时监控流
-GET  /inspect/logs     # 获取请求日志
+GET  /interspect/metrics    # 获取性能指标
+GET  /interspect/sse        # SSE 实时监控流
+GET  /interspect/status     # 获取SSE状态
 ```
 
 ### WebSocket 连接
