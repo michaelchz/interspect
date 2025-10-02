@@ -9,11 +9,11 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 ## 技术栈
 
 - **框架**: NestJS 11.x
-- **语言**: TypeScript 5.x
+- **语言**: TypeScript 5.9.2
 - **运行时**: Node.js
 - **测试**: Jest
 - **代码规范**: ESLint + Prettier
-- **HTTP 客户端**: Axios
+- **HTTP 代理**: http-proxy
 - **WebSocket**: ws
 
 ## 核心架构
@@ -22,33 +22,39 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 项目采用简洁的代理设计：
 
-1. **AbstractStaticService** (`src/proxy-module/services/abstract-static.service.ts`): 抽象基类，提供通用的代理功能
-2. **StaticService** (`src/proxy-module/services/static.service.ts`): 静态代理实现，直接转发请求
+1. **HttpProxy** (`src/proxy-module/services/http.proxy.ts`): HTTP 代理服务实现
+2. **WebSocketGateway** (`src/proxy-module/services/websocket.gateway.ts`): WebSocket 网关服务
 
-### 抽象基类设计
+### 服务实现设计
 
-`AbstractStaticService` 为所有代理服务提供：
-- 统一的代理服务器管理
+**HttpProxy** 提供：
+- 基于 `http-proxy` 库的 HTTP/HTTPS 代理
 - 连接池配置和超时控制
 - 错误处理和日志记录
 - 性能指标收集
 - 请求/响应监控
 
+**WebSocketGateway** 提供：
+- 基于 `ws` 库的 WebSocket 服务器
+- 客户端连接管理
+- 消息双向代理（一对一）
+- 连接状态监控和优雅关闭
+
 ### 连接池管理
 
-每个代理服务使用独立的 HTTP/HTTPS Agent：
+HTTP 代理使用独立的 HTTP/HTTPS Agent（在 `proxy.module.ts` 中配置）：
 - 禁用连接复用 (keepAlive: false) - 避免 socket hang up
 - 最大连接数: Infinity，最大空闲连接: 0
 - 超时时间: 120 秒
 - Docker 环境下代理超时机制
 
-### WebSocket 网关
+### Bootstrap 初始化
 
-- 每个客户端独立管理服务器连接
-- 支持消息双向代理和广播
-- 自动重连机制
-- 连接状态管理和优雅关闭
-- 与 inspect-service 集成进行消息监控
+`common/bootstrap/` 目录包含应用启动时的初始化逻辑：
+- **filters.setup.ts**: 全局异常过滤器配置
+- **http-proxy.setup.ts**: HTTP 代理路由配置
+- **websocket-proxy.setup.ts**: WebSocket 网关配置
+- **static-assets.setup.ts**: 静态资源配置（`/interspect/web` 路径）
 
 ## 常用开发命令
 
@@ -76,32 +82,34 @@ npm run test:e2e          # E2E 测试
 
 核心模块：
 
-- **app-config-module**: 配置管理，支持环境变量和 .env 文件
-- **proxy-module**: 代理服务核心，包含静态代理实现和性能指标收集
-- **inspect-module**: 请求/响应日志记录、SSE 服务和错误监控
-- **websocket-module**: WebSocket 网关服务，支持双向消息代理
-- **common**: 工具类、异常过滤器和类型定义
+- **proxy-module**: 代理服务核心，包含 HttpProxy 和 WebSocketGateway
+- **inspect-module**: 请求/响应日志记录、SSE 服务和性能指标收集
+- **common**: 公共模块，包含初始化逻辑、异常过滤器和工具类
+  - **bootstrap/**: 应用启动初始化逻辑
+  - **filters/**: 全局异常过滤器
+  - **utils/**: 工具类（如文件日志服务）
 
 ### 关键设计模式
 
-1. **抽象基类**: `AbstractStaticService` 为代理服务提供基础功能
-2. **依赖注入**: 使用 NestJS 的 DI 容器管理服务依赖
-3. **拦截器**: 用于请求/响应转换和监控
-4. **通配符路由**: `ProxyController` 使用 `@All('*')` 捕获所有 HTTP 请求
+1. **依赖注入**: 使用 NestJS 的 DI 容器管理服务依赖
+2. **模块化设计**: 代理和监控功能分离到独立模块
+3. **Bootstrap 模式**: 应用启动时按顺序初始化各个组件
+4. **代理模式**: HTTP 和 WebSocket 请求的透明转发
 
 ## 特殊目录
 
 ### `/public/`
-静态文件服务目录（通过 `/fusion` 路径访问）：
+静态文件服务目录（通过 `/interspect/web` 路径访问）：
 - `index.html`: 主页面
 - `components/`: 前端组件（包括 SSE 客户端和信息卡片）
 
 ## 开发注意事项
 
 ### 1. 新增代理服务
-1. 继承 `AbstractStaticService`
-2. 实现特定的代理逻辑
-3. 在 `proxy.module.ts` 中注册并配置连接池
+1. 在 `proxy-module/services/` 目录下创建新的代理服务
+2. 使用 `http-proxy` 库或 `ws` 库实现代理逻辑
+3. 在 `proxy.module.ts` 中注册服务并配置连接池
+4. 集成 `InspectService` 进行监控
 
 ### 2. 错误处理
 - 使用全局异常过滤器 (`AllExceptionsFilter`)
@@ -111,7 +119,8 @@ npm run test:e2e          # E2E 测试
 ### 3. 性能优化
 - 连接池禁用 keepAlive 避免 socket hang up
 - 大文件传输使用流式处理
-- 使用独立的 Agent 管理不同服务的连接
+- 使用独立的 Agent 管理 HTTP/HTTPS 连接
+- SSE 连接心跳检测（WebSocket 无心跳机制）
 
 ## 配置文件
 
@@ -138,7 +147,9 @@ npm run test:e2e          # E2E 测试
 - 通过环境变量配置端口和其他参数
 
 ### 环境变量
-- `TARGET_SERVER_URL`: 目标服务器 URL（单服务器）
+- `TARGET_SERVER_URL`: 目标服务器 URL（必需配置）
+- `PORT`: 服务端口（默认 3000）
+- 其他配置通过 `@nestjs/config` 模块管理，支持 .env 文件
 
 ## 重要技术细节
 
