@@ -3,11 +3,8 @@ import { ConfigModule } from "@nestjs/config";
 import { HttpProxy } from "./services/http.proxy";
 import { WebSocketGateway } from "./services/websocket.gateway";
 import { InspectModule } from "../inspect-module/inspect.module";
-import { ProxyMetricsService } from "./services/proxy-metrics.service"; // New import path
-import { MetricsController } from "./controllers/metrics.controller"; // New import
 import * as http from "http";
 import * as https from "https";
-import { AgentMetricsService } from "./services/agent-metrics.service";
 
 // Agents for HttpProxy
 const httpProxyHttpAgent = new http.Agent({
@@ -25,13 +22,11 @@ const httpProxyHttpsAgent = new https.Agent({
 
 @Module({
   imports: [ConfigModule, InspectModule],
-  controllers: [MetricsController],
+  controllers: [],
   providers: [
     HttpProxy,
     WebSocketGateway,
     Logger,
-    ProxyMetricsService,
-    AgentMetricsService,
     {
       provide: "STATIC_HTTP_AGENT",
       useValue: httpProxyHttpAgent,
@@ -41,7 +36,7 @@ const httpProxyHttpsAgent = new https.Agent({
       useValue: httpProxyHttpsAgent,
     },
   ],
-  exports: [ProxyMetricsService, AgentMetricsService, WebSocketGateway],
+  exports: [WebSocketGateway],
 })
 export class ProxyModule implements OnModuleDestroy {
   onModuleDestroy() {

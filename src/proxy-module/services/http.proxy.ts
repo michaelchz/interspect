@@ -5,8 +5,9 @@ import { IncomingMessage } from "http";
 import { Request, Response } from "express";
 import * as http from "http";
 import * as https from "https";
-import { ProxyMetricsService } from "./proxy-metrics.service";
+import { ProxyMetricsService } from "../../inspect-module/services/proxy-metrics.service";
 import { InspectService } from "../../inspect-module/services/inspect.service";
+import { AgentMetricsService } from "../../inspect-module/services/agent-metrics.service";
 
 type ProxyServer = ReturnType<typeof createProxyServer>;
 
@@ -22,6 +23,7 @@ export class HttpProxy implements OnModuleDestroy {
     @Inject("STATIC_HTTP_AGENT") private readonly httpAgent: http.Agent,
     @Inject("STATIC_HTTPS_AGENT") private readonly httpsAgent: https.Agent,
     private readonly inspectService: InspectService,
+    private readonly agentMetricsService: AgentMetricsService,
   ) {
     this.logger = new Logger(HttpProxy.name);
 
@@ -44,6 +46,9 @@ export class HttpProxy implements OnModuleDestroy {
       proxyTimeout: 60000,
       timeout: 60000,
     });
+
+    // 将 agent 传递给 AgentMetricsService
+    this.agentMetricsService.setStaticAgents(this.httpAgent, this.httpsAgent);
 
     this.setupProxyListeners(this.proxy);
 

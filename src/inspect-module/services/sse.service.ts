@@ -1,5 +1,5 @@
 import { Injectable, Logger, OnModuleDestroy } from "@nestjs/common";
-import type { Response } from "express";
+import type { Request, Response } from "express";
 
 export interface SseClient {
   id: string;
@@ -13,13 +13,60 @@ export class SseService implements OnModuleDestroy {
   private clients: Map<string, SseClient> = new Map();
 
   /**
-   * 添加 SSE 客户端
+   * 添加 SSE 客户端并启动心跳
    */
-  addClient(id: string, response: Response): void {
-    this.clients.set(id, { id, response });
+  addClient(id: string, response: Response, request: Request): void {
+    const client: SseClient = { id, response };
+    this.clients.set(id, client);
+
+    // 发送连接确认
+    try {
+      if (!response.writableEnded) {
+        response.write(":connected\n\n");
+      }
+    } catch (error) {
+      this.logger.error("Failed to send connected message:", error);
+    }
+
+    // 启动心跳
+    this.startHeartbeat(client);
+
+    // 设置连接关闭处理
+    request.on("close", () => {
+      this.removeClient(id);
+    });
+
     this.logger.log(
       `SSE client connected: ${id}, total clients: ${this.clients.size}`,
     );
+  }
+
+  /**
+   * 启动客户端心跳
+   */
+  private startHeartbeat(client: SseClient): void {
+    client.heartbeatInterval = setInterval(() => {
+      if (client.response.writableEnded) {
+        this.removeClient(client.id);
+        return;
+      }
+
+      try {
+        const heartbeatData = {
+          type: "heartbeat",
+          message: "heartbeat",
+          timestamp: new Date().toISOString(),
+        };
+        const message = `data: ${JSON.stringify(heartbeatData)}\n\n`;
+        client.response.write(message);
+      } catch (error) {
+        this.logger.error(
+          `Failed to send heartbeat to client ${client.id}:`,
+          error,
+        );
+        this.removeClient(client.id);
+      }
+    }, 7000); // 7秒
   }
 
   /**
@@ -75,16 +122,6 @@ export class SseService implements OnModuleDestroy {
    */
   hasClients(): boolean {
     return this.clients.size > 0;
-  }
-
-  /**
-   * 设置客户端的心跳定时器
-   */
-  setHeartbeatInterval(id: string, interval: NodeJS.Timeout): void {
-    const client = this.clients.get(id);
-    if (client) {
-      client.heartbeatInterval = interval;
-    }
   }
 
   /**

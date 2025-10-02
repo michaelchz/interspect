@@ -4,7 +4,7 @@ import { WebSocket as WSWebSocket } from "ws";
 import { Server as WSServer } from "ws";
 import { IncomingMessage } from "http";
 import { InspectService } from "../../inspect-module/services/inspect.service";
-import { ProxyMetricsService } from "./proxy-metrics.service";
+import { ProxyMetricsService } from "../../inspect-module/services/proxy-metrics.service";
 import * as http from "http";
 
 @Injectable()

@@ -1,16 +1,17 @@
-import { Inject, Injectable } from "@nestjs/common";
+import { Injectable } from "@nestjs/common";
 import * as http from "http";
 import * as https from "https";
 import { Socket } from "net";
 
 @Injectable()
 export class AgentMetricsService {
-  constructor(
-    @Inject("STATIC_HTTP_AGENT")
-    private readonly staticHttpAgent: http.Agent,
-    @Inject("STATIC_HTTPS_AGENT")
-    private readonly staticHttpsAgent: https.Agent,
-  ) {}
+  private staticHttpAgent: http.Agent | null = null;
+  private staticHttpsAgent: https.Agent | null = null;
+
+  setStaticAgents(httpAgent: http.Agent, httpsAgent: https.Agent) {
+    this.staticHttpAgent = httpAgent;
+    this.staticHttpsAgent = httpsAgent;
+  }
 
   private getAgentStatus(httpAgent: http.Agent, httpsAgent: https.Agent) {
     const countSockets = (sockets: NodeJS.ReadOnlyDict<Socket[]>) => {
@@ -35,6 +36,15 @@ export class AgentMetricsService {
   }
 
   public getAllAgentStatuses() {
+    if (!this.staticHttpAgent || !this.staticHttpsAgent) {
+      return {
+        static: {
+          http: { active: 0, idle: 0 },
+          https: { active: 0, idle: 0 },
+        },
+      };
+    }
+
     return {
       static: this.getAgentStatus(this.staticHttpAgent, this.staticHttpsAgent),
     };

@@ -1,11 +1,12 @@
 import { Module } from "@nestjs/common";
-import { InspectController } from "./controllers/inspect.controller";
 import { InspectService } from "./services/inspect.service";
 import { SseService } from "./services/sse.service";
+import { ProxyMetricsService } from "./services/proxy-metrics.service";
+import { AgentMetricsService } from "./services/agent-metrics.service";
 
 @Module({
-  controllers: [InspectController],
-  providers: [InspectService, SseService],
-  exports: [InspectService, SseService],
+  controllers: [],
+  providers: [InspectService, SseService, ProxyMetricsService, AgentMetricsService],
+  exports: [InspectService, SseService, ProxyMetricsService, AgentMetricsService],
 })
 export class InspectModule {}
