@@ -31,17 +31,22 @@ class SSEClient extends HTMLElement {
 
                 .sse-header {
                     display: flex;
-                    justify-content: space-between;
+                    justify-content: flex-start;
                     align-items: center;
                     margin-bottom: 15px;
                     padding-bottom: 12px;
                     border-bottom: 1px solid var(--border-color);
+                    gap: 12px;
+                    flex-wrap: wrap;
                 }
 
                 .filter-controls {
                     display: flex;
                     align-items: center;
+                    justify-content: flex-start;
                     gap: 8px;
+                    flex-shrink: 0;
+                    min-width: auto;
                 }
 
                 .filter-label {
@@ -64,6 +69,8 @@ class SSEClient extends HTMLElement {
                     cursor: pointer;
                     position: relative;
                     border-right: 1px solid var(--border-color);
+                    flex-shrink: 0;
+                    min-width: auto;
                 }
 
                 .filter-radio-wrapper:last-child {
@@ -87,7 +94,11 @@ class SSEClient extends HTMLElement {
                     cursor: pointer;
                     display: block;
                     text-align: center;
-                    min-width: 35px;
+                    width: auto;
+                    min-width: 28px;
+                    max-width: 36px;
+                    flex-shrink: 0;
+                    white-space: nowrap;
                 }
 
                 .filter-radio:checked + .filter-radio-label {
@@ -112,10 +123,13 @@ class SSEClient extends HTMLElement {
                     background-color: rgba(255, 255, 255, 0.05);
                     color: var(--text-color);
                     font-size: 12px;
-                    width: 280px;
+                    width: 200px;
+                    min-width: 160px;
+                    max-width: 280px;
                     transition: all 0.3s ease;
                     height: 32px;
                     box-sizing: border-box;
+                    flex-shrink: 0;
                 }
 
                 .filter-text-input input:focus {
@@ -217,10 +231,33 @@ class SSEClient extends HTMLElement {
                     transform: scale(1.1);
                 }
 
+                /* 移动端触摸优化 */
+                @media (hover: none) and (pointer: coarse) {
+                    .filter-radio-label:active,
+                    .btn-clear:active,
+                    .btn-ignore-path:active,
+                    .auto-scroll-status:active,
+                    .connection-status:active {
+                        transform: scale(0.95);
+                        opacity: 0.8;
+                    }
+
+                    .filter-text-input input:focus {
+                        transform: scale(1.02);
+                    }
+
+                    .clear-text-btn:active {
+                        transform: translateY(-50%) scale(0.9);
+                    }
+                }
+
                 .header-right {
                     display: flex;
                     align-items: center;
                     gap: 6px;
+                    flex-shrink: 0;
+                    min-width: 300px;
+                    margin-left: auto;
                 }
 
                 .auto-scroll-status {
@@ -303,10 +340,12 @@ class SSEClient extends HTMLElement {
                     display: flex;
                     align-items: center;
                     gap: 10px;
+                    flex-shrink: 0;
+                    min-width: 80px;
                 }
 
                 .sse-title {
-                    font-size: 16px;
+                    font-size: 14px;
                     font-weight: 600;
                     color: var(--secondary-color);
                 }
@@ -340,6 +379,10 @@ class SSEClient extends HTMLElement {
                     transition: all 0.2s ease;
                     height: 32px;
                     box-sizing: border-box;
+                    width: auto;
+                    min-width: auto;
+                    flex-shrink: 0;
+                    white-space: nowrap;
                 }
                 .btn-ignore-path:hover {
                     background-color: rgba(255, 152, 0, 0.2);
@@ -355,6 +398,56 @@ class SSEClient extends HTMLElement {
                 #messages-container-wrapper {
                     flex: 1;
                     min-height: 0;
+                }
+
+                @media (max-width: 480px) {
+                    .sse-header {
+                        padding-bottom: 20px;
+                        align-items: flex-start;
+                    }
+
+                    #messages-container-wrapper {
+                        min-height: 300px;
+                        height: 60vh;
+                    }
+
+                    .filter-controls {
+                        order: 4;
+                        justify-content: flex-start;
+                        flex-basis: 100%;
+                        flex-wrap: wrap;
+                    }
+
+                    .filter-text-input {
+                        flex-basis: 100%;
+                        order: 1;
+                    }
+
+                    .header-right {
+                        order: 3;
+                        flex-wrap: wrap;
+                        gap: 6px;
+                        justify-content: space-between;
+                        flex-basis: 100%;
+                    }
+
+                    .header-right > * {
+                        flex: 1;
+                        min-width: 0;
+                        text-align: center;
+                    }
+
+                    .connection-status {
+                        order: 1;
+                    }
+
+                    .auto-scroll-status {
+                        order: 2;
+                    }
+
+                    .btn-clear {
+                        order: 3;
+                    }
                 }
 
             </style>
